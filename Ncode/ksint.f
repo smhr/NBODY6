@@ -12,6 +12,7 @@
      &               BR(NTMAX),EOSC(4,NTMAX),EDEC(NTMAX),TOSC(NTMAX),
      &               ZP(NTMAX),ES(NTMAX),CZ(2,NTMAX),IOSC(NTMAX),
      &               NAMEC(NTMAX)
+      COMMON/POSTN/  CVEL,TAUGR,RZ1,GAMMAZ,TKOZ,EMAX,TSP,KZ24,IGR,IPN
       COMMON/SLOW0/  RANGE,ISLOW(10)
       COMMON/GAMDOT/  DGAM
       REAL*8  UI(4),UIDOT(4),XI(6),VI(6),FP(6),FD(6)
@@ -75,23 +76,43 @@
           END IF
           DT1 = STEP(I1)
           CALL UNPERT(IPAIR)
-*
 *       Check updating of unperturbed relativistic KS binary.
-          IF (KZ(11).NE.0.AND.NCH.EQ.0.AND.LIST(1,I1).EQ.0) THEN
+          IF (KZ(11).NE.0.AND.LIST(1,I1).EQ.0) THEN
               CALL BRAKE4(I1,I2,DT1)
               IF (IPHASE.LT.0) GO TO 100
           END IF
 *
 *       Try re-initialize chain WD/BH system after dormant KS (#11 only).
-          IF (KZ(11).NE.0.AND.NCH.EQ.0.AND.LIST(1,I1).GT.0) THEN
-              IF (MIN(KSTAR(I1),KSTAR(I2)).GE.10) THEN
+          IF (KZ(11).NE.0.AND.NCH.EQ.0.AND.
+     &        (LIST(1,I1).GT.0.OR.IPN.EQ.2)) THEN
+*       Ensure at least one KS component is a BH.
+              IF (MAX(KSTAR(I1),KSTAR(I2)).EQ.14) THEN
                   SEMI = -0.5*BODY(I)/H(IPAIR)
+                  RI = R(IPAIR)
+                  ECC2 = (1.0-RI/SEMI)**2+TDOT2(IPAIR)**2/(BODY(I)*SEMI)
+                  DW = 3.0*TWOPI*BODY(I)/(SEMI*CLIGHT**2*(1.0 - ECC2))
+                  JJ = LIST(2,I1)
+                  RIJ2 = 0.0
+                  RD = 0.0
+                  DO 221 K = 1,3
+                      RIJ2 = RIJ2 + (X(K,I) - X(K,JJ))**2
+                      RD = RD + (X(K,I)-X(K,JJ))*(XDOT(K,I)-XDOT(K,JJ))
+  221             CONTINUE
+*       Skip on outward motion or separation > 5*RMIN.
+                  IF ((RD.GT.0.0.OR.RIJ2.GT.25.0*RMIN2).AND.
+     &                IPN.LE.1) GO TO 100
                   WRITE (6,222)  TIME+TOFF, NAME(JCLOSE), KSTAR(I1),
      &                           KSTAR(I2), LIST(1,I1), GAMMA(IPAIR),
-     &                           SEMI
- 222              FORMAT (' ACTIVATE CHAIN    T NMJ K* NP G A  ',
-     &                                        F9.1,I7,3I4,1P,2E10.2)
+     &                           SEMI, R(IPAIR)
+  222             FORMAT (' ACTIVATE CHAIN    T NMJ K* NP G A R ',
+     &                                        F9.1,I7,3I4,1P,3E10.2)
+      CALL FLUSH(6)
                   KSPAIR = IPAIR
+*       Restore unperturbed motion from BRAKE4 (NP = 0 fixes some problem).
+                  IF (GAMMA(IPAIR).LT.1.0D-10) THEN
+                      JCLOSE = 0
+                      LIST(1,I1) = 0
+                  END IF
                   KS2 = 0
 *       Include case of binary as dominant perturber.
                   IF (JCLOSE.GT.N) THEN
@@ -99,9 +120,10 @@
                       IF (KS2.GT.KSPAIR) KS2 = KS2 - 1
                       JCOMP = JCLOSE
                       JP = JCLOSE - N
-                      WRITE (6,223)  KSPAIR, KS2, JCLOSE, GAMMA(JP)
-  223                 FORMAT (' BINARY PERT    KSP KS2 JCLOSE GJP ',
-     &                                         2I4,I7,1P,E10.2)
+                      RIJ = SQRT(RIJ2)
+                      WRITE (6,223)  KSPAIR, KS2, JCLOSE, RIJ, GAMMA(JP)
+  223                 FORMAT (' BINARY PERT    KSP KS2 JCLOSE RIJ GJP ',
+     &                                         2I4,I7,1P,2E10.2)
                   ELSE
 *       Avoid JCOMP > N & JCLOSE < N for spurious CALL KSTERM in DELAY.
                       JCOMP = 0
@@ -142,7 +164,7 @@
 *
 *       Initialize termination indicator and check for large perturbation.
       IQ = .FALSE.
-      IF (GI.GT.0.25) GO TO 2
+      IF (GI.GT.0.1) GO TO 2
       IF (GI.LT.0.03) THEN
           JCOMP = 0
           GO TO 20
@@ -181,15 +203,23 @@
     5     CONTINUE
    10 CONTINUE
 *
-*       Set termination if strong perturber <= N forms dominant pair.
-      IF (JCOMP.GT.0.OR.GI.GT.1.0) THEN
+*       Try chain regularization if strong perturber forms dominant pair.
+      IF (JCOMP.GT.0.OR.GI.GT.0.1) THEN
 *       Check optional binary search.
 *         IF (KZ(4).GT.0) THEN
 *             DGAM = GI - G0
 *             K = KZ(4)
 *             CALL EVOLVE(IPAIR,K)
 *         END IF
-          IF (JCOMP.LE.N.OR.GI.GT.2.0) IQ = .TRUE.
+          IF (JCOMP.LE.N.OR.GI.GT.0.1) IQ = .TRUE.
+*       Avoid termination inside SEMI (loss of energy accuracy in KSINIT).
+          SEMI = -0.5*BODY(I)/HI
+          IF (IQ.AND.GI.GT.0.05) THEN
+              IF (RI.LT.SEMI.OR.TD2.LT.0.0) IQ = .FALSE.
+              IF (SEMI.GT.3.0*RMIN) IQ = .TRUE.
+*       Note failed chain with R' < 0 & IQ = .true. leads to KS switching.
+          END IF
+          IF (SEMI.GT.0.0.AND.SEMI.LT.3.0*RMIN) GO TO 84
       END IF
 *
 *       Check termination of hyperbolic encounter (R > R0 or R > 2*RMIN).
@@ -198,7 +228,7 @@
      &        (GI.GT.0.5.AND.TD2.GT.0.0)) THEN
 *       Skip termination delay in case of velocity kick (cf. routine KSTERM).
               IF (HI.LT.100.0.OR.GI.GT.0.1.OR.RI.GT.5.0*RMIN) THEN
-                  IQ = .TRUE.
+                  IF (TD2.GT.0.0) IQ = .TRUE.
               END IF
           END IF
       END IF
@@ -299,15 +329,24 @@
       IF (NAME(I).LT.0) THEN
 *       Terminate if apocentre perturbation > 0.25 (R > SEMI) or GI > 0.25.
           IF (HI.LT.0.0) THEN
-              SEMI = -0.5*BODY(I)/HI
+*             SEMI = -0.5*BODY(I)/HI
 *             ECC2 = (1.0 - RI/SEMI)**2 + TDOT2(IPAIR)**2/(BODY(I)*SEMI)
 *             A0 = SEMI*(1.0 + SQRT(ECC2))/RI
 *       Replace eccentricity calculation with typical value.
-              A0 = 1.5*SEMI/RI
-              GA = GI*A0*A0*A0
-              IF (GA.GT.0.25.AND.RI.GT.SEMI) IQ = .TRUE.
-              IF (RI.GT.20*RMIN.AND.NNB0.GT.0.8*LIST(1,I)) IQ = .TRUE.
+*             A0 = 1.5*SEMI/RI
+*             GA = GI*A0*A0*A0
+*             IF (GA.GT.0.25.AND.RI.GT.SEMI) IQ = .TRUE.
+              IF (RI.GT.10*RMIN.AND.NNB0.GT.0.8*LIST(1,I)) IQ = .TRUE.
+*       Cancel termination for less than 10 % predicted apocentre perturbation.
+              IF (IQ) THEN
+                  SEMI = -0.5*BODY(I)/HI
+                  ECC2 = (1.0 - RI/SEMI)**2 +
+     &                    TDOT2(IPAIR)**2/(BODY(I)*SEMI)
+                  RAP = SEMI*(1.0 + SQRT(ECC2))
+                  IF (GI*(RAP/RI)**2.LT.0.1) IQ = .FALSE.
+              END IF
               IF (GI.GT.0.1.AND.RI.GT.RMIN) IQ = .TRUE.
+              IF (GI.GT.0.002.AND.RI.GT.5.0*RMIN) IQ = .TRUE.
               IF (GI.GT.0.25) IQ = .TRUE.
 *       Include extra condition for planet case.
               IF (MIN(BODY(I1),BODY(I2)).LT.0.05*BODYM) THEN
@@ -325,7 +364,14 @@
 *         WRITE (6,45)  IPAIR, TTOT, GI, RI, DTR, STEP(I1)
 *  45     FORMAT (' TERM TEST    KS T G R DTR DT  ',
 *    &                           I4,F10.4,F7.3,1P,E10.2,2E9.1)
-          IF (DTR.LT.STEP(I1)) GO TO 90
+*       See whether chain test is needed (note SEMI not avaiable).
+          IF (DTR.LT.STEP(I1)) THEN
+              IF (GI.GT.0.03) THEN
+                  SEMI = -0.5*BODY(I)/HI
+                  GO TO 84
+              END IF
+              GO TO 90
+          END IF
       END IF
 *
 *       Check standard termination criterion (suppress on IQ = .true.).
@@ -333,7 +379,7 @@
 *       Include termination for rare tidal capture starting at pericentre.
           IF (KSTAR(I).LT.0.AND.RI.GT.5.0*RMIN) GO TO 90
 *       Impose a limit using size of neighbour sphere (100*R > 0.80*RS).
-          IF (RI.GT.8.0D-03*RS(I).AND.GI.GT.1.0D-04) GO TO 90
+          IF (RI.GT.8.0D-03*RS(I).AND.GI.GT.1.0D-03) GO TO 90
 *       See whether termination can be delayed for sufficient perturbers.
           IF (NNB0.LT.0.80*LIST(1,I).AND.GI.LT.0.1) GO TO 60
 *       Check updating of R0 for newly hardened binary orbit.
@@ -355,7 +401,8 @@
 *  55         CONTINUE
 *             CALL EVOLVE(IPAIR,K)
 *         END IF
-          GO TO 90
+*       Avoid repeated terminations for large distances (other limits above).
+          IF (NNB0.GT.2.AND.LIST(1,I).GT.2) GO TO 90
       END IF
 *
 *       End integration cycle for hyperbolic motion.
@@ -386,15 +433,19 @@
                   IF (QPERI.LT.5.0*RX) THEN
                       WRITE (54,54)  TTOT, NAME(I1), NAME(I2), KS1,
      &                               KS2, VINF, RCAP*SU, RX*SU, QPERI*SU
-   54                 FORMAT (' CLOSE   T NAM K* VINF RCAP RX QP  ',
-     &                                  F7.1,2I6,2I4,F6.2,3F6.1)
+   54                 FORMAT (' CLOSE    T NAM K* VINF RCAP RX QP  ',
+     &                                   F7.1,2I6,2I4,F6.2,3F6.1)
                   END IF
                   IF (QPERI.LT.RCAP) THEN
                       J1 = I1
                       IF (RADIUS(I2).GT.RADIUS(I1)) J1 = I2
-                      FAC = 0.5*BODY(I)/BODY(J1)
+*       Set possible BH index and check disruption condition (& #43) first.
+                      J2 = 2*IPAIR + 1 - J1
+                      IF (KZ(43).GE.2.AND.KSTAR(J2).EQ.14) THEN
+                          RCOLL = (BODY(J2)/BODY(J1))**0.3333*RADIUS(J1)
+                      ELSE IF (KZ(27).LE.2) THEN
 *       Adopt collision criterion of Kochanek (Ap.J. 385, 604, 1992).
-                      IF (KZ(27).LE.2) THEN
+                          FAC = 0.5*BODY(I)/BODY(J1)
                           RCOLL = 1.7*FAC**0.3333*RADIUS(J1)
                       ELSE
                           RCOLL = 6.0*BODY(I)/CLIGHT**2
@@ -431,7 +482,7 @@
                       END IF
                   END IF
 *       Check options for artificial collisions.
-              ELSE IF (KZ(27).EQ.-1.AND.KZ(13).LT.0) THEN
+              ELSE IF (KZ(27).EQ.-1) THEN
                   RFAC = 2.0
                   IF (QPERI.LT.RFAC*MAX(RADIUS(I1),RADIUS(I2))) THEN
                       J1 = I1
@@ -504,9 +555,13 @@
               IF (QPERI.LT.RX) THEN
                   J1 = I1
                   IF (RADIUS(I2).GT.RADIUS(I1)) J1 = I2
-                  FAC = 0.5*BODY(I)/BODY(J1)
+*       Set possible BH index and check disruption condition (& #43) first.
+                  J2 = 2*IPAIR + 1 - J1
+                  IF (KZ(43).GE.2.AND.KSTAR(J2).EQ.14) THEN
+                      RCOLL = (BODY(J2)/BODY(J1))**0.3333*RADIUS(J1)
+                  ELSE IF (KZ(27).LE.2) THEN
 *       Adopt collision criterion of Kochanek (Ap.J. 385, 604, 1992).
-                  IF (KZ(27).LE.2) THEN
+                      FAC = 0.5*BODY(I)/BODY(J1)
                       RCOLL = 1.7*FAC**0.3333*RADIUS(J1)
                   ELSE
                       RCOLL = 6.0*BODY(I)/CLIGHT**2
@@ -547,7 +602,7 @@
                   CALL KSTIDE(IPAIR,QPERI)
               END IF
 *       Check options for artificial collisions.
-          ELSE IF (KZ(27).EQ.-1.AND.KZ(13).LT.0) THEN
+          ELSE IF (KZ(27).EQ.-1) THEN
               RFAC = 2.0
               IF (QPERI.LT.RFAC*MAX(RADIUS(I1),RADIUS(I2))) THEN
                   J1 = I1
@@ -665,7 +720,7 @@
           GO TO 100
       END IF
 *
-*       Select new perturbers (J = N adopted for unperturbed Chaos).
+*       Select new perturbers at apocentre (J = N set for unperturbed Chaos).
    82 CALL KSLIST(IPAIR)
 *
 *       Check rectification of chaotic spiral at start of unperturbed motion.
@@ -677,16 +732,19 @@
           CALL KSRECT(IPAIR)
       END IF
 *
-*       See whether a massive BH subsystem can be selected.
-      IF (NAME(I).GT.0.AND.BODY(I).GT.0.0003.AND.NCH.EQ.0.AND.
-     &    KZ(11).NE.0.AND.LIST(1,I1).LE.5.AND.SEMI.LT.RMIN) THEN
+*       See whether a subsystem can be selected for chain reg.
+*     IF (KZ(11).NE.0.AND.NCH.EQ.0.AND.BODY(I).GT.5.0*BODYM.AND.
+   84 IF (NCH.EQ.0.AND.SEMI.LT.5.0*RMIN.AND.NAME(I).GT.0.AND.
+     &    GI.GT.0.05) THEN
 *
 *       Check optional BH condition (prevents mass-loss complications).
           IF (KZ(11).LE.-2) THEN
               IF (KSTAR(I1).NE.14.OR.KSTAR(I2).NE.14) GO TO 88
           END IF
 *
-          RCR2 = RMIN2*BODY(I)/(16.0*BODYM)
+*       Enlarge the search distance by mass ratio factor.
+          RCR2 = RMIN22*BODY(I)/BODYM
+          RCR2 = 16.0*MAX(RMIN22,RCR2)
           NNB1 = LIST(1,I1) + 1
           RX2 = 1000.0
           JCLOSE = 0
@@ -697,39 +755,79 @@
               RD = (X(1,I)-X(1,J))*(XDOT(1,I)-XDOT(1,J)) +
      &             (X(2,I)-X(2,J))*(XDOT(2,I)-XDOT(2,J)) +
      &             (X(3,I)-X(3,J))*(XDOT(3,I)-XDOT(3,J))
-              IF (RIJ2.LT.RCR2.AND.RD.LT.0.0.OR.
-     &           (RIJ2.LT.4.0*SEMI**2)) THEN
+              IF (RIJ2.LT.RCR2.AND.RD.LT.0.0) THEN
                   IF (RIJ2.LT.RX2) THEN
                       RX2 = RIJ2
                       RRD = RD
                       JCLOSE = J
+                      VIJ2 = (XDOT(1,I) - XDOT(1,J))**2 +
+     &                       (XDOT(2,I) - XDOT(2,J))**2 +
+     &                       (XDOT(3,I) - XDOT(3,J))**2
                   END IF
               END IF
    85     CONTINUE
           IF (JCLOSE.GT.0) THEN
+              IF (NAME(JCLOSE).LE.0.OR.NCH.GT.0) GO TO 88
+*       Skip chain selection if close perturber > 5*SEMI or impact > 2*SEMI.
               RX = SQRT(RX2)
-*       Limit energy of triple system (< 50*EBH) using radial velocity.
-              ZMU = BODY(I)*BODY(JCLOSE)/(BODY(I) + BODY(JCLOSE))
-              EBT = EB + ZMU*(0.5*(RRD/RX)**2-(BODY(I)+BODY(JCLOSE)/RX))
-              IF (EBT.GT.50.0*EBH) GO TO 88
-              WRITE (6,86)  TTOT, NAME(JCLOSE), LIST(1,I1), STEP(I),
-     &                      STEP(JCLOSE), SEMI, RX, GI, EBT
-   86         FORMAT (' NEW CHAIN   T NMJ NP STEPI STEPJ A RIJ GI EBT ',
-     &                              F9.3,I6,I4,1P,6E10.2)
-              CALL FLUSH(6)
-*       Initiate chain regularization directly (see IMPACT).
+              SEMI1 = 2.0/RX - VIJ2/(BODY(I) + BODY(JCLOSE))
+              SEMI1 = 1.0/SEMI1
+              ECC2 = (1.0-RX/SEMI1)**2 + RRD**2/(BODY(I)+BODY(JCLOSE))
+              ECC1 = SQRT(ECC2)
+              PMIN = SEMI1*(1.0 - ECC1)
+              IF (RX.GT.5.0*PMIN.OR.PMIN.GT.3.0*SEMI) GO TO 88
+*       Delay until end of the block-step.
+              IF (TBLOCK-TIME.GT.STEP(I1)) GO TO 100
+*             =============================================================
+*       Limit energy of triple system (< EBH) using radial velocity.
+*             ZMU = BODY(I)*BODY(JCLOSE)/(BODY(I) + BODY(JCLOSE))
+*             EB = BODY(I1)*BODY(I2)*HI*BODYIN
+*       Warning: potential energy may be underestimated (small RX).
+*             EBT = EB + ZMU*(0.5*(RRD/RX)**2-(BODY(I)+BODY(JCLOSE)/RX))
+*             SUM = BODY(I1)*BODY(I2) + BODY(JCLOSE)*BODY(I)
+*             RGRAV = SUM/ABS(EBT)
+*             IF (EBT.GT.EBH.OR.RGRAV.GT.10.0*RMIN) GO TO 88
+*       Note rare case of dominant intruder/high velocity (hence suppressed).
+*             =============================================================
+*
+*       Include distance criterion for B-B (avoids possible chain problem).
+              IF (JCLOSE.GT.N) THEN
+                  JP = JCLOSE - N
+                  AJ = -0.5*BODY(JCLOSE)/H(JP) ! Needs proper stability test.
+                  WRITE (6,86)  SEMI, AJ, PMIN, RX
+   86             FORMAT (' KSINT CHAIN B-B    A AJ PM RX ',1P,4E10.2)
+              END IF
+*
+              WRITE (6,87)  TTOT, NAME(JCLOSE), LIST(1,I1), SEMI, RGRAV,
+     &                      RX, GI
+   87         FORMAT (' NEW CHAIN    T NMJ NP A RGRAV RX GI ',
+     &                               F9.3,I6,I4,1P,4E10.2)
+      CALL FLUSH(6)
+*       Initiate chain regularization directly (B-B or B-S: see IMPACT).
               JCOMP = JCLOSE
               JCMAX = 0
               KSPAIR = IPAIR
               IPHASE = 8
               EBCH0 = EB
-              CALL DELAY(1,0)
+*       Distinguish between case of single and binary intruder.
+              IF (JCLOSE.LE.N) THEN
+                  KS2 = 0
+              ELSE
+                  KS2 = JCLOSE - N
+*       Reduce c.m. body location and pair index if IPAIR terminated first.
+                  IF (KS2.GT.IPAIR) JCLOSE = JCLOSE - 1
+                  IF (KS2.GT.IPAIR) KS2 = KS2 - 1
+              END IF
+*       Initialize new ARchain or standard chain.
+              CALL DELAY(1,KS2)
               GO TO 100
           END IF
       END IF
+*       Include KS termination for failed chain test.
+   88 IF (IQ) GO TO 90
 *
 *       Check optional search criterion for multiple encounter or merger.
-   88 IF (KZ(15).GT.0.AND.STEP(I).LT.DTMIN) THEN
+      IF (KZ(15).GT.0.AND.STEP(I).LT.DTMIN) THEN
           CALL IMPACT(I)
       END IF
       GO TO 100

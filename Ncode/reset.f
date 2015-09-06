@@ -25,6 +25,7 @@
       G1 = GAMMA(IPAIR)
       R1 = R(IPAIR)
       SEMI1 = -0.5*BODY(I)/H(IPAIR)
+      NP = LIST(1,2*IPAIR-1)
 *
 *       Locate current position in the merger table.
       IMERGE = 0
@@ -256,11 +257,11 @@
       IF (KZ(15).GT.1) THEN
           WRITE (6,65)  IMERGE, TIME+TOFF, BODY(2*NPAIRS-1),
      &                  BODY(2*NPAIRS), R1, SEMI1, EB, E1,
-     &                  GAMMA(NPAIRS), G1, NNB
+     &                  GAMMA(NPAIRS), G1, NP, NNB
    65     FORMAT (' END MERGER',I3,'  T =',F8.2,'  M =',2F7.4,
      &            '  R1 =',1PE8.1,'  A1 =',E8.1,'  EB =',0PF6.3,
      &            '  E1 =',F6.3,'  GB =',1PE8.1,'  G =',0PF6.3,
-     &            '  NB =',I3)
+     &            '  NP =',I3,'  NB =',I4)
       END IF
 *
 *       Check Roche look-up time.

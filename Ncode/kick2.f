@@ -36,9 +36,9 @@
       CALL KSREG
 *
 *       Check neighbour step reduction to compensate for velocity increase.
-      NNB = ILIST(1)
+      NNB = LIST(1,NTOT)
       DO 10 L = 2,NNB+1
-          J = ILIST(L)
+          J = LIST(L,NTOT)
           IF (T0(J) + 0.5*STEP(J).GT.TIME) THEN
               STEP(J) = 0.5*STEP(J)
               TNEW(J) = T0(J) + STEP(J)

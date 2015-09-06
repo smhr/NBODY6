@@ -123,8 +123,9 @@
       JPERT(1) = ICOMP
       CALL NBREM(NTOT,NCH,1)
 *
-*       Initialize perturber list for integration of chain c.m.
+*       Initialize perturber list and XC & UC for integration of chain c.m.
       CALL CHLIST(ICH)
+      CALL XCPRED(0)      ! original bug fix 05/15.
 *
 *       Perform differential F & FDOT corrections due to perturbers.
       DO 25 K = 1,3
@@ -144,6 +145,7 @@
 *       Check next treatment time of perturbers.
       CALL TCHAIN(NSUB,TSMIN)
       TMAX = MIN(TMAX,TSMIN)
+      TMAX = MIN(TMAX,TADJ-TIME)
 *
 *       Copy binding energy and output & capture option for routine CHAIN.
       CM(8) = E(3)

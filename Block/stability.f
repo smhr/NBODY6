@@ -1,10 +1,10 @@
-	real*8 function stability(mm1,mm2,mm3,ein,eout,inc)
+        real*8 function stability(mm1,mm2,mm3,ein,eout,inc)
 
 *       Three-body stability test (Mardling & Aarseth 1999)
 *
         implicit real*8 (a-h,m,o-z)
         REAL*8 inc
-	
+        
 *       Employ the semi-analytical stability criterion (MA 1999).
       Q = mm3/(mm1 + mm2)
       IF (EOUT.LT.1.0) THEN
@@ -20,4 +20,4 @@
 *
         stability=PCRIT
 
-	end
+        end

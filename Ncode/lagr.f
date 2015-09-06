@@ -133,7 +133,8 @@
    70     FORMAT ('  VELOCITY (T =',F7.1,'): ',1P,13E10.2)
           CALL FLUSH(27)
           WRITE (36,75)  TTOT, (AVM(K),K=1,LX)
-   75     FORMAT ('  AVERAGE MASS (T =',F7.1,'): ',13F7.3)
+*  75     FORMAT ('  AVERAGE MASS (T =',F7.1,'): ',13F7.3)
+   75     FORMAT ('  AVERAGE MASS T ',F7.1,13F7.3)
           CALL FLUSH(36)
       END IF
       IF (KZ(7).EQ.6.AND.TIME.GE.TNEXT) THEN

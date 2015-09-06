@@ -1,4 +1,4 @@
-      SUBROUTINE CHMOD(ISUB,KCASE)
+      SUBROUTINE CHMOD(ISUB,KCASE,IESC,JESC)
 *
 *
 *       Modification of chain member(s).
@@ -25,6 +25,8 @@
       DATA IT,IWARN /0,0/
 *
 *
+      IESC = 0
+      JESC = 0
 *       Copy chain variables to standard form.
       LK = 0
       DO 3 L = 1,NCH
@@ -136,7 +138,7 @@
       END IF
       IF (NN.GT.3.AND.GPERT.GT.1.0) IWARN = 0
 *
-*       Skip outgoing orbit with GPERT < 0.2 or large membership.
+*       Skip outgoing orbit with GPERT < 1D-04 or NCH > 4 & GPERT < 0.2.
       IF (RDOT.GT.0.0.AND.(NCH.GE.5.OR.GPERT.LT.0.2)) GO TO 10
       IF (RDOT.GT.0.0.AND.GPERT.LT.1.0D-04) GO TO 10
       IF (RDOT.GT.0.0) THEN
@@ -145,8 +147,8 @@
           IF (RX.GT.10.0*RMIN.OR.HI.GT.0.0) GO TO 10
           IF (GPERT.LT.0.1) GO TO 10
       END IF
-*       Quit on RIJ > 5*RMIN to prevent repeated switching.
-      IF (NCH.EQ.2.AND.(RIJ.GT.5.0*RMIN.OR.GPERT.LT.1.0D-04)) GO TO 10
+*       Quit on RIJ > 5*RMIN (or NCH = 2 & RDOT > 0) to prevent switching.
+      IF (NCH.EQ.2.AND.(RIJ.GT.5.0*RMIN.OR.RDOT.GT.0.0)) GO TO 10
       IF (NN.GE.7.AND.JCLOSE.GT.N) GO TO 10
 *
 *       Note looping for NCH = 2 which gives GAMX = 0.
@@ -191,11 +193,11 @@
           PMIN = SEMI*(1.0 - ECC)
           IF (PMIN.GT.5.0*RGRAV.AND.GPERT.LT.0.001.AND.NPERT.GT.4) THEN
               IF (MOD(NSTEP1,1000).EQ.0) THEN
-              WRITE (3,140)  NSTEP1, NAME(JCLOSE), ECC, SEMI,
+              WRITE (6,140)  NSTEP1, NAME(JCLOSE), ECC, SEMI,
      &                       SEMI*(1.0-ECC), 5.0*RGRAV, GPERT
   140         FORMAT (' SKIP HEAVY   # NM E A PM 5*RG GP ',
      &                               I8,I4,F8.4,1P,4E10.2)
-              CALL FLUSH(3)
+              CALL FLUSH(6)
               END IF
               GO TO 10
           END IF
@@ -265,11 +267,11 @@
           END IF
 *
           IF (JCLOSE.GT.N) THEN
-              WRITE (3,160)  NAME(JCLOSE), R(JCLOSE-N), GAMMA(JCLOSE-N)
+              WRITE (6,160)  NAME(JCLOSE), R(JCLOSE-N), GAMMA(JCLOSE-N)
   160         FORMAT (' ABSORB BINARY    NM R G ',I6,1P,2E10.2)
           END IF
           IF (KSTAR(JCLOSE).EQ.14.AND.NCH.EQ.2) THEN
-              WRITE (3,165)  NSTEP1, ECC, SEMI, SEMI*(1-ECC), GPERT, RIJ
+              WRITE (6,165)  NSTEP1, ECC, SEMI, SEMI*(1-ECC), GPERT, RIJ
   165         FORMAT (' ABSORB!    # E A PM GP RIJ ',I8,F8.4,1P,4E10.2)
           END IF
 *
@@ -341,7 +343,7 @@
           END IF
 *
           IF (JCLOSE.GT.N) THEN
-              WRITE (3,155)  NAME(JCLOSE), R(JCLOSE-N), GAMMA(JCLOSE-N)
+              WRITE (6,155)  NAME(JCLOSE), R(JCLOSE-N), GAMMA(JCLOSE-N)
           END IF
 *
 *       Absorb the perturber (single particle or binary).
@@ -412,11 +414,6 @@
           END IF
           ZMB = BODYC(IESC) + BODYC(JESC)
           ZMB2 = BODYC(J1) + BODYC(J2)
-*         IF (ZMB.GT.10.0*MIN(BODYC(J1),BODYC(J2))) THEN
-*             IESC = J1
-*             JESC = 0
-*             KCASE = 1
-*         END IF
 *       Retain the most massive binary for AR_Chain case.
           IF (ZMB.GT.ZMB2) THEN
               IESC = J1
@@ -462,18 +459,24 @@
       IF (KCASE.EQ.0) GO TO 60
 *
 *       Ensure enforced escape of binary in wide four-body system.
-      IF (KCASE.EQ.2.AND.NCH.EQ.4.AND.1.0/RINV(2).GT.20.0*RMIN) THEN
-          WRITE (6,11)  IESC, JESC, NPERT, 1.0/RINV(IBIN), 1.0/RINV(2)
-   11     FORMAT (' ENFORCED ESCAPE    IESC JESC NP RB R2 ',
-     &                                 3I4,1P,2E10.2)
+      IF (KCASE.EQ.2.AND.NCH.EQ.4.AND.1.0/RINV(2).GT.10.0*RMIN) THEN
+          WRITE (6,11)  NSTEP1, IESC, JESC, NPERT, NAMEC(IESC),
+     &                  NAMEC(JESC), 1.0/RINV(IBIN), 1.0/RINV(2)
+   11     FORMAT (' ENFORCED ESCAPE    # IESC JESC NP NAM RB R2 ',
+     &                                 I6,3I4,2I7,1P,2E10.2)
           KCASE = 1
           RI = 1.0/RINV(2)
+*       Mark the smallest (last) binary for removal even if IESC/JESC = 1/2.
+          IF (IESC+JESC.EQ.3.AND.1.0/RINV(3).LT.1.0/RINV(1)) THEN
+              IESC = 3
+              JESC = 4
+          END IF
           GO TO 40
       END IF
 *
 *       Enforce escape for distant member with positive radial velocity.
-      RD = X4(1,IPHASE)*XDOT4(1,IPHASE) + X4(2,IPHASE)*XDOT4(2,IPHASE)
-     &                                  + x4(3,IPHASE)*XDOT4(3,IPHASE)
+      RD = X4(1,IESC)*XDOT4(1,IESC) + X4(2,IESC)*XDOT4(2,IESC)
+     &                              + X4(3,IESC)*XDOT4(3,IESC)
       IF (NCH.EQ.4.AND.RSUM.GT.40.0*RMIN.AND.RD.GT.0.0D0) THEN
           KCASE = 1
           RI = 25.0*RMIN
@@ -483,10 +486,10 @@
       END IF
 *
       IF (KZ(30).GT.2) THEN
-          WRITE (3,12)  IESC, JESC, NSTEP1, ISORT(1),
+          WRITE (6,12)  IESC, JESC, NSTEP1, ISORT(1),
      &                  (1.0/RINV(K),K=1,NN-1)
    12     FORMAT (' CHMOD:    IESC JESC # ISORT1 R ',2I3,I5,I3,1P,5E9.1)
-          CALL FLUSH(3)
+          CALL FLUSH(6)
       END IF
 *
 *       Distinguish between binary and single particle.
@@ -513,8 +516,25 @@
           JBIN = IBIN + 1
           IF (IBIN.EQ.NN - 1) JBIN = IBIN - 1
           RJB = 1.0/RINV(JBIN)
-*       Ensure removal of widest binary (maybe not as KS) at RSUM > 30*RMIN.
-          IF (RSUM.GT.30.0*RMIN.AND.RB.GT.0.25*RJB) THEN
+*       Consider removal of outermost particle instead if binary is wide.
+          IF (RB.GT.0.25*RJB) THEN
+*       Change pointer to end of chain and redefine IESC (with JESC = 0).
+              IF (ISORT(1).EQ.2) THEN
+                  ISORT(1) = 1
+              ELSE
+                  ISORT(1) = NN - 1
+              END IF
+              IESC = JESC
+              JESC = 0
+              GO TO 20
+          END IF
+*       Skip if IESC & JESC are not consecutive.
+          IF (IABS(IESC-JESC).NE.1) THEN
+              KCASE = 0
+              GO TO 60
+          END IF
+*       Ensure removal of widest binary (maybe not as KS) at RSUM > 10*RMIN.
+          IF (RSUM.GT.10.0*RMIN.AND.RB.GT.0.25*RJB) THEN
               JBIN = NN - 1
               IF (JBIN.EQ.IBIN) IBIN = 1
               RB = 1.0/RINV(IBIN)
@@ -522,17 +542,6 @@
               WRITE (6,13) IESC, JESC, IBIN, RB, RJB, ZMB*SMU
    13         FORMAT (' IMPOSED ESCAPE    IESC JESC IB RB RJB MB ',
      &                                    3I4,1P,3E10.2)
-          END IF
-*       Consider removal of outermost particle instead if binary is wide.
-          IF (RB.GT.0.25*RJB) THEN
-*       Change pointer to end of chain and redefine IESC.
-              IF (ISORT(1).EQ.2) THEN
-                  ISORT(1) = 1
-              ELSE
-                  ISORT(1) = NN - 1
-              END IF
-              IESC = JESC
-              GO TO 20
           END IF
       ELSE
           GO TO 20
@@ -580,7 +589,8 @@
 *       Employ parabolic escape criterion (terminate if RI > RMIN & NCH < 5).
       IF ((RI.GT.RESC.AND.RDOT.GT.0.0.AND.RB*AINV.GT.0.99).OR.
      &    (HI.GT.0.0.AND.RI.GT.3.0*RMIN)) THEN
-          IF (RDOT**2.LT.2.0*BODY(ICH)/RI) THEN
+*       Ensure outward motion to prevent repeated acceptance (4/13).
+          IF (RDOT.GT.0.0.AND.RDOT**2.LT.2.0*BODY(ICH)/RI) THEN
 *       Define effective perturbation using remaining size.
               GB = 2.0*BCM/(BODY(ICH) - BCM)*((RSUM - RJB - RB)/RI)**3
 *       Split into two KS solutions if binaries are well separated.
@@ -597,9 +607,10 @@
 *       Accept binary escape for small perturbation & V**2 > M/R (NCH > 4).
               ELSE IF (GB.LT.0.01.AND.NCH.GT.4.AND.
      &                 (RDOT**2.GT.BODY(ICH)/RI.OR.RI.GT.RMIN)) THEN
-                  WRITE (3,18)  IESC, JESC, NAMEC(IESC), NAMEC(JESC),
+                  WRITE (6,18)  IESC, JESC, NAMEC(IESC), NAMEC(JESC),
      &                          RI, RDOT**2, 2.0*BODY(ICH)/RI, RB
                   CM(9) = CM(9) - EB
+                  KCASE = 1
                   GO TO 40
               ELSE
 *       Check splitting into two KS solutions (R1 + R3 < R2/5 & RDOT > VC).
@@ -629,7 +640,7 @@
                   VINF = 0.0
               END IF
               IF (KZ(30).GT.1.OR.VINF.GT.1.0) THEN
-                  WRITE (3,18)  IESC, JESC, NAMEC(IESC), NAMEC(JESC),
+                  WRITE (6,18)  IESC, JESC, NAMEC(IESC), NAMEC(JESC),
      &                          RI, RDOT**2, 2.0*BODY(ICH)/RI, RB, VINF
    18             FORMAT (' CHAIN ESCAPE:    IESC JESC NM RI RDOT2 ',
      &                                      '2*M/R RB VINF ',
@@ -637,11 +648,11 @@
               END IF
 *       Enforce termination (KCASE < 0) if NCH <= 4 (final membership <= 2).
               IF (NCH.LE.4) THEN
-*                 KCASE = -1
-                  KCASE = 1
+                  KCASE = -1
                   GO TO 40
               END IF
               CM(9) = CM(9) - EB
+              KCASE = 1
               GO TO 40
           END IF
       ELSE
@@ -681,6 +692,11 @@
       RI = SQRT(RX)
       RDOT = X4(1,IT)*XDOT4(1,IT) + X4(2,IT)*XDOT4(2,IT) +
      &                              X4(3,IT)*XDOT4(3,IT)
+*       Include safety termination (6/2014).
+      IF (NN.EQ.3.AND.RI.GT.5.0*RMIN) THEN
+          KCASE = 1
+          GO TO 40
+      END IF
       IF (RI.GT.20.0*RMIN.AND.RDOT.GT.0.0) THEN
 *       Delay for BH and small perturbation (orbit may turn around).
           IF (ISTAR(IT).EQ.14.AND.GPERT.LT.1.0D-04.AND.
@@ -705,7 +721,7 @@
                   KCASE = 0
                   GO TO 60
               END IF
-*             WRITE (3,27)  IT, NAMEC(IT), GPERT, RI, RDOT, RX
+*             WRITE (6,27)  IT, NAMEC(IT), GPERT, RI, RDOT, RX
 *  27         FORMAT (' BASIC ESCAPE:    IESC NM GP RI RDOT RX ',
 *    &                                   I3,I7,1P,4E10.2)
               IESC = IT
@@ -799,7 +815,7 @@
           IF (ISTAR(IESC).EQ.14.AND.GPERT.GT.0.001) THEN
               VINF = 0.0
               IF (HI.GT.0.0) VINF = SQRT(2.0*HI)*VSTAR
-*             WRITE (3,32)  NAMEC(IESC), VINF, GPERT, RI, RX
+*             WRITE (6,32)  NAMEC(IESC), VINF, GPERT, RI, RX
 *  32         FORMAT (' HEAVY ESCAPER   NAM VINF G R RX ',
 *    &                                  I4,F6.1,1P,3E10.2)
               KCASE = 1
@@ -853,7 +869,7 @@
                       SEMI = 0.5*RGRAV/(1.0 + ZF*(1.0 + RGRAV*ER/MASS))
                       RY = 1.0/RINV(IB)
                       IF (RY.LT.0.9*SEMI.AND.RI.LT.2.0*RMIN) THEN
-                          WRITE (3,33)  NSTEP1, RY/SEMI, RI, RDOT**2,
+                          WRITE (6,33)  NSTEP1, RY/SEMI, RI, RDOT**2,
      &                                  2.0*BODY(ICH)/RI, SEMI
                           KCASE = 0
                           GO TO 60
@@ -921,7 +937,7 @@
               RY = 1.0/RINV(IB)
 *       Note RGRAV = MIN(0.5*RSUM,RGRAV) is OK and RGRAV adjusted on QPMOD.
               IF (RY.LT.0.8*SEMI.AND.RI.LT.2.0*RMIN) THEN
-                  WRITE (3,33)  NSTEP1, RY/SEMI, RI, RDOT**2,
+                  WRITE (6,33)  NSTEP1, RY/SEMI, RI, RDOT**2,
      &                          2.0*BODY(ICH)/RI, SEMI
    33             FORMAT (' CHAIN DELAY    # R/A RI RD2 VP2 A ',
      &                                     I8,F6.2,1P,4E9.1)
@@ -948,6 +964,10 @@
               END IF
               VINF = 0.0
               RX = -BODY(ICH)/HI
+              IF (RI.LT.5.0*RMIN.AND.GPERT.LT.1.0D-03) THEN
+                  KCASE = 0
+                  GO TO 60
+              END IF
           ELSE
               VINF = SQRT(2.0*HI)*VSTAR
               RX = 10.0
@@ -958,11 +978,11 @@
               GO TO 60
           END IF
           IF (KZ(30).GT.1.OR.VINF.GT.2.0) THEN
-              WRITE (3,36)  IESC, NAMEC(IESC), RI, RDOT**2,
+              WRITE (6,36)  IESC, NAMEC(IESC), RI, RDOT**2,
      &                      2.0*BODY(ICH)/RI, VINF, GPERT
    36         FORMAT (' CHAIN ESCAPE:    IESC NM RI RDOT2 2*M/R VF GP ',
      &                                   I3,I6,1P,3E9.1,0P,F6.1,1P,E9.1)
-              CALL FLUSH(3)
+              CALL FLUSH(6)
           END IF
 *       Ensure single body is removed in case of wide binary.
           JESC = 0
@@ -973,8 +993,7 @@
 *
 *       Reduce chain membership (NCH > 3) or specify termination.
    40 IF (NCH.GE.3) THEN
-          IF (RI.GT.20.0*RMIN) GO TO 99
-          IF (VINF.GT.5.0.AND.RI.GT.3.0*RMIN) GO TO 99
+          IF (RI.GT.3.0*RMIN) GO TO 99
           IF (VINF.GT.0.0.AND.RI.GT.5.0*RMIN.AND.RDOT.GT.0.0) GO TO 99
 *       Subtract largest chain distance from system size (also binary).
 *         IM = ISORT(1)
@@ -1014,7 +1033,7 @@
                   GO TO 60
               END IF
               RP = SQRT(RP2)
-              WRITE (3,46) NSTEP1, NCH, NAMEC(IESC), RI, RX,GPERT,GX,
+              WRITE (6,46) NSTEP1, NCH, NAMEC(IESC), RI, RX,GPERT,GX,
      &                     RP, RDOT
    46         FORMAT (' REDUCE!   # NCH NMC RI RX GP GX RP RD ',
      &                            I8,I4,I6,1P,2E10.2,4E9.1)
@@ -1032,7 +1051,8 @@
      &                            F10.3,I4,I7,1P,2E10.2)
           END IF
 *
-   99     CALL REDUCE(IESC,JESC,ISUB)
+*  99     CALL REDUCE(IESC,JESC,ISUB)
+   99     CONTINUE
 *     ELSE
 *         KCASE = -1
       END IF
@@ -1040,7 +1060,6 @@
 *       Set phase indicator < 0 to ensure new NLIST in routine INTGRT.
    50 IPHASE = -1
 *
-      CALL FLUSH(6)
    60 RETURN
 *
       END

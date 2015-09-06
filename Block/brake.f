@@ -28,6 +28,31 @@
       ECC = SQRT(ECC2)
       SEMI1 = SEMI - DSEP 
 *
+*       Include circularization check (otherwise unperturbed KS missed).
+      IF (KZ(27).GT.0.AND.ECC.GT.0.01) THEN
+          QPERI = SEMI*(1.0 - ECC)
+          ICIRC = -1
+          CALL TCIRC(QPERI,ECC,I1,I2,ICIRC,TC)
+          IF (TC.LT.100.0) THEN
+              KX = MAX(KSTAR(I1),KSTAR(I2))
+              WRITE (6,3)  ICIRC, KX, TC, MAX(R1,R2)
+    3         FORMAT (' TCIRC CHECK   IC K* TC R* ',2I5,1P,2E10.2)
+              CALL FLUSH(6)
+          END IF
+          IF (ICIRC.GT.0.AND.TC.LT.100.0) THEN
+*       Send dummy argument for defining collision/coalescence.
+              KCASE = 0
+              CALL KSTIDE(IPAIR,KCASE,QPERI)
+              IF (KCASE.LT.0) THEN
+                  KSPAIR = IPAIR
+                  IQCOLL = 1
+                  CALL CMBODY(R(IPAIR),2)
+*       Note other cases are at end of KSTIDE using JPHASE < 0.
+              END IF
+              GO TO 50
+          END IF
+      END IF
+*
 *      Check for circularized case. 
       IF(KSTAR(I).LT.10.AND.ECC1.LT.0.002)THEN
          ECC1 = 0.001D0
@@ -50,9 +75,8 @@
      &                      F8.2,I6,I4,F9.5,1P,2E10.2)
       END IF
 *
-*       Check collision condition for degenerate objects.
-      IF (RP.LE.(R1 + R2).OR.
-     &   (KSX.GE.13.AND.R(IPAIR).LT.RCOAL)) THEN
+*       Check collision condition for stars or degenerate objects.
+      IF (RP.LT.RCOAL) THEN
          CALL KSPERI(IPAIR)
          IQCOLL = -2
          KSPAIR = IPAIR

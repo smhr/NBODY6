@@ -5,9 +5,12 @@
 *       ------------------------------------
 *
       INCLUDE 'common6.h'
+      COMMON/FSAVE/ SAVEIT(6)
       REAL*8  Q(3),RDOT(3),UI(4),VI(4),A1(3,4)
-      SAVE  IPREV,EBPREV
-      DATA  IPREV,EBPREV /0,-1.0D-06/
+      REAL*8  A(9),F1(3),F1DOT(3)
+      INTEGER IPIPE(9)
+      SAVE  IPIPE
+      DATA  IPIPE /9*0/
 *
 *
 *       Set new global indices of the components and current pair index.
@@ -44,6 +47,8 @@
           XDOT(K,NTOT) = X0DOT(K,NTOT)
           XDOT(K,ICOMP) = X0DOT(K,ICOMP)
           XDOT(K,JCOMP) = X0DOT(K,JCOMP)
+          X0(K,NTOT) = X(K,NTOT)
+      X0(K,JCOMP) = X(K,JCOMP)
    10 CONTINUE
 *
 *       Obtain force polynomial for c.m. with components ICOMP & JCOMP.
@@ -52,9 +57,145 @@
 *       Predict current coordinates & velocities for the neighbours.
       CALL XVPRED(ICOMP,NNB)
 *
+*       Choose between full FPOLY1/2 or just neighbours (skip non-standard).  
+      IF (N.LT.5000.OR.IPHASE.NE.1) THEN
+*
 *       Obtain new polynomials & steps (first F & FDOT, then F2DOT & F3DOT).
-      CALL FPOLY1(ICOMP,JCOMP,1)
-      CALL FPOLY2(NTOT,NTOT,1)
+          CALL FPOLY1(ICOMP,JCOMP,1)
+          CALL FPOLY2(NTOT,NTOT,1)
+*
+      ELSE
+*
+*       Treat each component in turn (initialize, then evaluate F & FDOT).
+          I = ICOMP
+          ICM = NTOT
+  110     DO 115 K = 1,3
+              FI(K,I) = 0.0
+              D1(K,I) = 0.0
+  115     CONTINUE
+*
+*       Obtain irregular force & first derivative for body #I.
+          KDUM = 0
+          NNB = LIST(1,ICM)
+*       Loop over neighbours only using c.m. list (cf. FPOLY1).
+          DO 140 L = 2,NNB+1
+              J = LIST(L,ICM)
+              IF (J.GT.N) THEN
+                  JPAIR = J - N
+*       Use c.m. approximation for unperturbed binary.
+                  IF (LIST(1,2*JPAIR-1).GT.0) THEN
+                      KDUM = 2*JPAIR - 1
+                      J = KDUM
+                  END IF
+              END IF
+*
+  120         DO 125 K = 1,3
+                  A(K) = X(K,J) - X(K,I)
+                  A(K+3) = XDOT(K,J) - XDOT(K,I)
+  125         CONTINUE
+*
+              A(7) = 1.0/(A(1)*A(1) + A(2)*A(2) + A(3)*A(3))
+              A(8) = BODY(J)*A(7)*SQRT(A(7))
+              A(9) = 3.0*(A(1)*A(4) + A(2)*A(5) + A(3)*A(6))*A(7)
+*
+*       Accumulate irregular force and first derivative.
+              DO 130 K = 1,3
+                  F1(K) = A(K)*A(8)
+                  F1DOT(K) = (A(K+3) - A(K)*A(9))*A(8)
+                  FI(K,I) = FI(K,I) + F1(K)
+                  D1(K,I) = D1(K,I) + F1DOT(K)
+  130         CONTINUE
+*
+*       Check for KS component.
+              IF (J.EQ.KDUM) THEN
+                  J = J + 1
+                  GO TO 120
+              END IF
+  140     CONTINUE
+*
+*       Check option for external force (note FR already done).
+          IF (KZ(14).GT.0) THEN
+              CALL XTRNLD(I,I,1)
+          END IF
+*
+*       Treat second component in the same way.
+          IF (I.EQ.ICOMP) THEN
+              I = JCOMP
+              GO TO 110
+          END IF
+*
+*       Form c.m. force and derivative from mass-weighted terms.
+          FIRR = 0.0
+          FDIRR = 0.0
+          RI2 = 0.0
+          DO 150 K = 1,3
+              FI(K,ICM) = (BODY(ICOMP)*FI(K,ICOMP) +
+     &                     BODY(JCOMP)*FI(K,JCOMP))/BODY(ICM)
+              D1(K,ICM) = (BODY(ICOMP)*D1(K,ICOMP) +
+     &                     BODY(JCOMP)*D1(K,JCOMP))/BODY(ICM)
+              FIRR = FIRR + FI(K,ICM)**2
+              FDIRR = FDIRR + D1(K,ICM)**2
+              RI2 = RI2 + (X(K,ICM) - RDENS(K))**2
+  150     CONTINUE
+*
+*       Obtain irregular time-step and check commensurability.
+          DT = ETAI*SQRT(FIRR/FDIRR)
+          IF (NNB.LT.20) tHEN
+              VI2 = XDOT(1,ICM)**2+XDOT(2,ICM)**2+XDOT(3,ICM)**2
+              DT0 = 0.1*RS(ICM)/SQRT(VI2)
+              DT = MIN(DT0,DT)
+          END IF
+*       Reduce step by extra factor outside the core.
+          IF (RI2.GT.0.1) DT = 0.25*DT
+          CALL STEPK(DT,DTN)
+          STEP(ICM) = DTN
+          ITER = 0
+  160     IF (DMOD(TIME,STEP(ICM)).NE.0.0D0) THEN
+              STEP(ICM) = 0.5D0*STEP(ICM)
+              ITER = ITER + 1
+              IF (ITER.LT.16.OR.STEP(ICM).GT.DTK(40)) GO TO 160
+              STEP(ICM) = DTK(40)
+          END IF
+          T0(ICM) = TIME
+          T0R(ICM) = TIME
+          TNEW(ICM) = TIME + STEP(ICM)
+*
+*       Form force components and first derivatives for c.m.
+          DO 170 K = 1,3
+              FR(K,ICM) = SAVEIT(K)
+              D1R(K,ICM) = SAVEIT(K+3)
+              FRDOT(K,ICM) = SAVEIT(K+3)
+              F(K,ICM) = FI(K,ICM) + FR(K,ICM)
+              FDOT(K,ICM) = D1(K,ICM) + D1R(K,ICM)
+              F(K,ICM) = 0.5*F(K,ICM)
+              FDOT(K,ICM) = ONE6*FDOT(K,ICM)
+              D0(K,ICM) = FI(K,ICM)
+              D2(K,ICM) = 0.0
+              D3(K,ICM) = 0.0
+              D2R(K,ICM) = 0.0
+              D3R(K,ICM) = 0.0
+  170     CONTINUE
+*
+*       Assign regular time-step and perform commensurability check.
+          FIRR = 0.0
+          FDIRR = 0.0
+          DO 175 K = 1,3
+              FIRR = FIRR + FR(K,ICM)**2
+              FDIRR = FDIRR + D1R(K,ICM)**2
+  175     CONTINUE
+          DT = ETAR*SQRT(FIRR/FDIRR)
+          CALL STEPK(DT,DTN)
+          STEPR(ICM) = 0.25*DTN
+          ITER = 0
+  180     IF (DMOD(TIME,STEPR(ICM)).NE.0.0D0) THEN
+              STEPR(ICM) = 0.5D0*STEPR(ICM)
+              ITER = ITER + 1
+              IF (ITER.LT.16.OR.STEPR(ICM).GT.DTK(40)) GO TO 180
+              STEPR(ICM) = DTK(40)
+          END IF
+          STEP(ICM) = MIN(STEP(ICM),STEPR(ICM))
+          TNEW(ICM) = TIME + STEP(ICM)
+      END IF
 *
 *       Skip KS initialization at merger termination (H, U & UDOT in RESET).
       IF (IPHASE.EQ.7) THEN
@@ -62,13 +203,13 @@
           GO TO 50
       END IF
 *
-*       Define relative coordinates and velocities in physical units.
+*       Define relative coordinates and velocities in physical scaled units.
       DO 20 K = 1,3
           Q(K) = X(K,ICOMP) - X(K,JCOMP)
           RDOT(K) = X0DOT(K,ICOMP) - X0DOT(K,JCOMP)
    20 CONTINUE
 *
-*       Introduce regularized variables using definition of 1985 paper.
+*       Introduce regularized variables using definition of Book.
       R(IPAIR) = SQRT(Q(1)**2 + Q(2)**2 + Q(3)**2)
 *
 *       Initialize the regularized coordinates according to sign of Q(1).
@@ -98,7 +239,7 @@
           TDOT2(IPAIR) = TDOT2(IPAIR) + 2.0D0*UI(K)*UDOT(K,IPAIR)
    30 CONTINUE
 *
-*       Evaluate initial binding energy per unit mass.
+*       Evaluate initial binding energy per unit mass (singular form).
       H(IPAIR) = (2.0D0*(UDOT(1,IPAIR)**2 + UDOT(2,IPAIR)**2 +
      &                   UDOT(3,IPAIR)**2 + UDOT(4,IPAIR)**2) -
      &                                              BODY(NTOT))/R(IPAIR)
@@ -127,6 +268,7 @@
                   CALL KSAPO(IPAIR)
 *       Reset TIME to quantized value (small > 0 or < 0 possible initially).
                   TIME = TIME0
+                  TIME = MAX(TIME,0.0D0)
               ELSE IF (TDOT2(IPAIR).GT.0.0) THEN
                   TDOT2(IPAIR) = -1.0E-20
               END IF
@@ -142,7 +284,7 @@
           END IF
       END IF
 *
-*       Specify zero membership and large step for second component).
+*       Specify zero membership and set large steps for second component.
       LIST(1,JCOMP) = 0
 *       Set large step for second component to avoid detection.
       STEP(JCOMP) = 1.0E+06
@@ -183,19 +325,22 @@
           WRITE (6,60)  TIME+TOFF, NAME(ICOMP), NAME(JCOMP),DTAU(IPAIR),
      &                  R(IPAIR), RI, H(IPAIR), IPAIR, GAMMA(IPAIR),
      &                  STEP(NTOT), LIST(1,ICOMP), LIST(1,NTOT)
-   60     FORMAT (/,' NEW KSREG    TIME =',F8.2,2I6,F12.3,1PE10.1,
-     &                                  0PF7.2,F9.2,I5,F8.3,1PE10.1,2I5)
+   60     FORMAT (/,' NEW KSREG    TIME =',F8.2,2I6,F12.3,1P,E10.1,
+     &                                0P,F7.2,F9.2,I5,F8.3,1P,E10.1,2I5)
       END IF
 *
-*       Include diagnostics for NS or BH hard binary formation.
+*       Include limited diagnostics for NS or BH hard binary formation.
       IF (MAX(KSTAR(ICOMP),KSTAR(JCOMP)).GE.13.AND.EB.LT.EBH.AND.
      &    IPHASE.NE.7) THEN
-*       Limit the diagnostics to significant change or new case.
-          ISUM = KSTAR(ICOMP) + KSTAR(JCOMP) + KSTAR(NTOT)
-          DEB = ABS((EB - EBPREV)/EBPREV)
-          IF (ISUM.NE.IPREV.OR.DEB.GT.0.1) THEN
-              IPREV = ISUM
-              EBPREV = EB
+          ID = 0
+          NP = IPIPE(1)
+*       See whether at least one component was recorded in previous pair.
+          DO 62 J = 2,NP+1
+              IF (IPIPE(J).EQ.NAME(ICOMP).OR.
+     &            IPIPE(J).EQ.NAME(JCOMP)) ID = ID + 1
+   62     CONTINUE
+*       Print diagnostics if NS/BH binary not listed among four last pairs.
+          IF (ID.LE.1) THEN
               PD = DAYS*SEMI*SQRT(ABS(SEMI)/BODY(NTOT))
               WRITE (6,65)  TIME+TOFF, NAME(ICOMP), NAME(JCOMP),
      &                      KSTAR(ICOMP), KSTAR(JCOMP), KSTAR(NTOT),
@@ -203,6 +348,19 @@
    65         FORMAT (' NS/BH BINARY    T NM K* E P EB ',
      &                                  F8.1,2I6,3I4,F7.3,1P,E9.1,E11.2)
           END IF
+*       Update table and membership by removing first two.
+          IF (NP.GE.8) THEN
+*       Note there are at most 4 pairs with entries in IPIPE(2:9).
+              DO 66 J = 2,6
+                  IPIPE(J) = IPIPE(J+2)
+                  IPIPE(J+1) = IPIPE(J+3)
+   66         CONTINUE
+              NP = NP - 2
+          END IF
+*       Add NAME of each component in NP+2/3 and increase membership by 2.
+          IPIPE(NP+2) = NAME(ICOMP)
+          IPIPE(NP+3) = NAME(JCOMP)
+          IPIPE(1) = NP + 2
       END IF
 *
 *       Modify the termination criterion according to value of NPAIRS.

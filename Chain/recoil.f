@@ -47,6 +47,12 @@
       END IF
       K1 = I3
       K2 = I4
+*       Initial binary names for EXCHANGE test.
+      IF (NSTEP1.EQ.0) THEN
+          NAME12 = NAMEC(I1) + NAMEC(I2)
+          NAME34 = 0
+          IF (N.EQ.4) NAME34 = NAMEC(I3) + NAMEC(I4)
+      END IF
 *
 *       Ensure that original KS pair is considered (H > 0 is possible).
       IF (N.LE.3.AND.IEND.EQ.0) THEN
@@ -191,8 +197,9 @@
       DB = CM(9)/EBCH0
       DE = DE + ABS(ENERGY - E0)
 *
-*       Provide diagnostics for exchange (membership may have changed).
-      IF (NAME1 + NAME2.NE.NAMEC(I1) + NAMEC(I2).AND.EB.LT.0.0) THEN
+*       Provide diagnostics for exchange (note possible collision or escape).
+      IF (NAME12.NE.NAMEC(I1) + NAMEC(I2).AND.
+     &    NAME34.NE.NAMEC(I1) + NAMEC(I2).AND.EB.LT.0.0) THEN
           ISUB = ISYS(5)
           TCH = T0S(ISUB) + TIMEC
           WRITE (6,15)  TCH, NAME1, NAME2, NAMEC(I1), NAMEC(I2), ECC0,

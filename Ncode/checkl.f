@@ -24,19 +24,19 @@
   306 CONTINUE
       IF (LJ.EQ.0) GO TO 320
 *
-      JCOMP = ILIST(LJ)
+      JCL = ILIST(LJ)  ! switched from JCOMP to local variable 4/14.
       K = 1
-  308 IF (K.GT.LIST(1,JCOMP)) GO TO 320
+  308 IF (K.GT.LIST(1,JCL)) GO TO 320
       K = K + 1
-      J = LIST(K,JCOMP)
+      J = LIST(K,JCL)
       IF (STEP(J).GT.SMIN) GO TO 308
 *       Skip single regularized particles or body #I itself.
       IF (J.LT.IFIRST.OR.J.EQ.I) GO TO 308
-      A1 = X(1,J) - X(1,JCOMP)
-      A2 = X(2,J) - X(2,JCOMP)
-      A3 = X(3,J) - X(3,JCOMP)
+      A1 = X(1,J) - X(1,JCL)
+      A2 = X(2,J) - X(2,JCL)
+      A3 = X(3,J) - X(3,JCL)
       RIJ2 = A1**2 + A2**2 + A3**2
-*       Only accept body #J as neighbour if distance to JCOMP is < 2*RMIN.
+*       Only accept body #J as neighbour if distance to JCL is < 2*RMIN.
       IF (RIJ2.GT.RMIN22) GO TO 308
 *
       IF (J.LE.N) GO TO 309
@@ -101,12 +101,12 @@
       IF (J.EQ.ILIST(L)) J = J - 1
 *       Index of the missing component, subject to neighbour test.
       IF (J.EQ.I) GO TO 323
-      JCOMP = ILIST(L)
-      A1 = X(1,JCOMP) - X(1,J)
-      A2 = X(2,JCOMP) - X(2,J)
-      A3 = X(3,JCOMP) - X(3,J)
+      JCL = ILIST(L)
+      A1 = X(1,JCL) - X(1,J)
+      A2 = X(2,JCL) - X(2,J)
+      A3 = X(3,JCL) - X(3,J)
       RIJ2 = A1*A1 + A2*A2 + A3*A3
-*       Only accept #J as neighbour if distance to JCOMP is < 2*RMIN.
+*       Only accept #J as neighbour if distance to JCL is < 2*RMIN.
       IF (RIJ2.LT.RMIN22) GO TO 324
   323 L = L - 1
 *       Increase search index by one only after unsuccessful test.
@@ -180,13 +180,13 @@
 *
       J = LISTR(L+1-ICASE)
 *       Index of missing component to be included subject to J = I test.
-      JCOMP = LISTR(L+ICASE-2)
-*       Arguments for J & JCOMP are L or L - 1 depending on ICASE.
-      A1 = X(1,JCOMP) - X(1,J)
-      A2 = X(2,JCOMP) - X(2,J)
-      A3 = X(3,JCOMP) - X(3,J)
+      JCL = LISTR(L+ICASE-2)
+*       Arguments for J & JCL are L or L - 1 depending on ICASE.
+      A1 = X(1,JCL) - X(1,J)
+      A2 = X(2,JCL) - X(2,J)
+      A3 = X(3,JCL) - X(3,J)
       RIJ2 = A1*A1 + A2*A2 + A3*A3
-*       Accept body #J only if distance to JCOMP is < 2*RMIN (skip J = I).
+*       Accept body #J only if distance to JCL is < 2*RMIN (skip J = I).
       IF (RIJ2.GT.RMIN22.OR.J.EQ.I) GO TO 332
 *
 *       Carry out force modifications due to addition of neighbour.

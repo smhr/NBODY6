@@ -131,10 +131,10 @@
       KSTARI = KSTAR(I)
 *       Include termination for escaping chain c.m. system (mainly NBODY7).
       IF (NAME(I).EQ.0) THEN
-          NSUB = NSUB - 1
+          NSUB = MAX(NSUB - 1,0)
           NCH = 0
-      WRITE (6,666)  ECH
-  666 FORMAT (' CHAIN ESCAPE!!!!!    ECH  ',F10.6)
+          WRITE (6,42)  ECH, EI
+   42     FORMAT (' CHAIN ESCAPE!!!!!    ECH EI  ',2F10.6)
           ECOLL = ECOLL + ECH
           ECH = 0.0
       END IF

@@ -1,4 +1,4 @@
-      SUBROUTINE NBINTP(I,IR,FIRR,FD)
+      SUBROUTINE NBINTP(I,IR,FIRR,FD,ISTAT)
 *
 *
 *       Parallel irregular integration.
@@ -8,6 +8,7 @@
       COMMON/CHAINC/  XC(3,NCMAX),UC(3,NCMAX),BODYC(NCMAX),ICH,
      &                LISTC(LMAX)
       COMMON/PREDICT/ TPRED(NMAX)
+      INTEGER ISTAT
       REAL*8  XI(3),XIDOT(3),FIRR(3),FREG(3),FD(3),FDUM(3),DX(3),DV(3)
       REAL*8  CMX(3),CMV(3),XK(6),VK(6),FCM(3),FCMD(3),FP(6),FPD(6)
 *
@@ -44,9 +45,13 @@
 *
 *       Adopt c.m. approximation for small total perturbation.
       IF (LIST(1,I1).GT.0) THEN
+          ISTAT = 1
+*       Treat irregular force by thread-safe routine NBINT.
+*       Delay irregular force treatment until thread-safe sequential repeat.
+          GO TO 100
 *       Obtain irregular force on perturbed c.m. body (including any chain).
-          CALL CMFIRR(I,I1,FIRR,FD)
-          GO TO 70
+*         CALL CMFIRR(I,I1,FIRR,FD)
+*         GO TO 70
       END IF
 *
 *       Copy c.m. coordinates & velocities for rare unperturbed intruder.
@@ -199,8 +204,9 @@
 *       Check option for external tidal field using predicted FREG.
    70 DT = TIME - T0(I)
       IF (KZ(14).GT.0) THEN
+          DTR = TIME - T0R(I)
           DO 75 K = 1,3
-              FREG(K) = FR(K,I) + FRDOT(K,I)*DT
+              FREG(K) = FR(K,I) + FRDOT(K,I)*DTR
    75     CONTINUE
           CALL XTRNLF(XI,XIDOT,FIRR,FREG,FD,FDUM,0)
       END IF
@@ -214,27 +220,24 @@
       T0(I) = TIME
 *
       DO 80 K = 1,3
-	  DF = FI(K,I) - FIRR(K)
-	  FID = FIDOT(K,I)
-	  SUM = FID + FD(K)
-	  AT3 = 2.0D0*DF + DT*SUM
-	  BT2 = -3.0D0*DF - DT*(SUM + FID)
+          DF = FI(K,I) - FIRR(K)
+          FID = FIDOT(K,I)
+          SUM = FID + FD(K)
+          AT3 = 2.0D0*DF + DT*SUM
+          BT2 = -3.0D0*DF - DT*(SUM + FID)
 *
-	  X0(K,I) = XI(K) + (0.6D0*AT3 + BT2)*DTSQ12
-	  X0DOT(K,I) = XIDOT(K) + (0.75D0*AT3 + BT2)*DT13
+          X0(K,I) = XI(K) + (0.6D0*AT3 + BT2)*DTSQ12
+          X0DOT(K,I) = XIDOT(K) + (0.75D0*AT3 + BT2)*DT13
 *
-*         X0(K,I) = X(K,I)
-*         X0DOT(K,I) = XDOT(K,I)
-*
-	  FI(K,I) = FIRR(K)
-	  FIDOT(K,I) = FD(K)
+          FI(K,I) = FIRR(K)
+          FIDOT(K,I) = FD(K)
 *       Use total force for irregular step (cf. Makino & Aarseth PASJ, 1992).
           FDUM(K) = FIRR(K) + FR(K,I)
 *
           D0(K,I) = FIRR(K)
           D1(K,I) = FD(K)
-	  D2(K,I) = (3.0D0*AT3 + BT2)*DT2
-	  D3(K,I) = AT3*DT6
+          D2(K,I) = (3.0D0*AT3 + BT2)*DT2
+          D3(K,I) = AT3*DT6
 *       NOTE: These are real derivatives!
    80 CONTINUE
 *
@@ -305,7 +308,8 @@
       IF (I.GT.N) THEN
           IF (LIST(1,2*IPAIR-1).GT.0) NSTEPB = NSTEPB + 1
       END IF
+      ISTAT = 0
 *
-      RETURN
+  100 RETURN
 *
       END

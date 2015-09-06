@@ -155,7 +155,7 @@
 *       Check for TZ object formed by CE evolution.
           IF(KSTAR(I2).GE.13.AND.KW1.GE.13)THEN
               NTZ = NTZ + 1
-              WRITE (3,10)  M1, M2
+              WRITE (6,10)  M1, M2
    10         FORMAT (' NEW TZ    M1 M2 ',2F7.2)
           ENDIF
           IPAIR = -1
@@ -210,13 +210,13 @@
                   XDOT(K,I2) = VCM(K) - BODY(I1)*VREL(K)/ZMB
    20         CONTINUE
 *
-      WRITE (3,21)  ECC, SQRT(RB0),SQRT(RB2), SEMI, SEMI*(1.0 - ECC)
+      WRITE (6,21)  ECC, SQRT(RB0),SQRT(RB2), SEMI, SEMI*(1.0 - ECC)
    21 FORMAT (' NEW ORB   E RB0 RB A PMIN  ',F8.4,1P,4E12.4)
           ELSE
 *       Form relative velocity by ratio of new and old pericentre value.
               V2 = ZMB*(2.0/RIJ0 - 1.0/SEMI)
               V20 = VREL(1)**2 + VREL(2)**2 + VREL(3)**2
-      WRITE (3,22)  V2, V20
+      WRITE (6,22)  V2, V20
    22 FORMAT (' V2 V20   ',1P,2E12.4)
               DO 30 K = 1,3
                   VREL(K) = SQRT(V2/V20)*VREL(K)
@@ -239,7 +239,7 @@
           CHCOLL = CHCOLL - ZMU*HF
           ECDOT = ECDOT + 0.5*DM*VCM2
 *
-      WRITE (3,24)  ZMU0*HI- ZMU*HF, 0.5*DM*VCM2, HI, HF, DM*SMU
+      WRITE (6,24)  ZMU0*HI- ZMU*HF, 0.5*DM*VCM2, HI, HF, DM*SMU
    24 FORMAT (' EXPEL2    DEB DKE HI HF DMSUN ',1P,4E12.4,E10.2)
 *       Include potential energy terms due to all other members.
           POTJ = 0.d0
@@ -262,7 +262,7 @@
 *       Add potential energy contributions to yield final correction.
           ECDOT = ECDOT + DM*POTJ
 *
-          WRITE (3,60)  (NAME(JLIST(K)),K=1,4), KSTAR(I1), KSTAR(I2),
+          WRITE (6,60)  (NAME(JLIST(K)),K=1,4), KSTAR(I1), KSTAR(I2),
      &                  KW1, KW2, M1, M2, DM*ZMBAR, ECC, R1, R2,
      &                  SEMI0*SU, SEMI*SU, POT2-POT1
    60     FORMAT (' CHAIN CE    NAM K0* K* M1 M2 DM E R1 R2 A0 A DP ',

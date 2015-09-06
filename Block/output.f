@@ -127,7 +127,7 @@
       END IF
 *
 *       Print main output diagnostics.
-      I6 = TSCALE*TTOT
+      I6 = TSTAR*TTOT
 *
       WRITE (6,40)  TTOT, N, NNB, NPAIRS, NMERGE, MULT, NS, NSTEPI,
      &              NSTEPB, NSTEPR, NSTEPU, ERROR, BE(3), ZMASS
@@ -181,7 +181,7 @@
       WRITE (6,75)  NKSTRY, NKSREG,  NKSHYP, NKSPER, NPRECT, NEWKS,
      &              NKSMOD, NTTRY, NTRIP, NQUAD, NCHAIN, NMERG, NEWHI,
      &              NSTEPT, NSTEPQ, NSTEPC
-   75 FORMAT (' #3',I9,I7,I8,I11,I8,I7,2I9,2I7,I8,2I7,3I10)
+   75 FORMAT (' #3',I9,I7,I8,I11,I8,I7,2I9,2I7,I8,2I7,3I8)
 *
 *       Check output for mass loss or tidal capture.
       IF (KZ(19).GE.3.OR.KZ(27).GT.0) THEN
@@ -218,7 +218,7 @@
 *       Reset minimum encounter distances & maximum apocentre separation.
       DMIN2 = 100.0
       DMIN3 = 100.0
-*     DMIN4 = 100.0
+      DMIN4 = 100.0
       DMINC = 100.0
       RSMIN = 100.0
       RMAX = 0.0
@@ -269,23 +269,23 @@
       END IF
 *
 *       Check optional output of single bodies & binaries.
-      IF (KZ(9).GT.0.OR.KZ(6).GT.0) THEN
+      IF (KZ(6).GT.0) THEN
           CALL BODIES
       END IF
 *
 *       Include optional diagnostics for interstellar clouds on unit 47.
       IF (KZ(13).GT.0) THEN
-          WRITE (47,82)  TSCALE*TTOT, NS, NEWCL, DETOT, E(3),
+          WRITE (47,82)  TSTAR*TTOT, NS, NEWCL, DETOT, E(3),
      &                   RBAR*SQRT(PCL2), RBAR*RSCALE, RBAR*RC
    82     FORMAT (' ',F8.1,I7,I6,2F10.6,F6.2,2F7.3)
           CALL FLUSH(47)
           PCL2 = RB2
       END IF
 *
-*       See whether to write data bank of binary diagnostics on unit 9.
-      IF (KZ(8).GE.2.AND.NPAIRS.GT.0) THEN
+*       See whether to write data bank of binary diagnostics on units 9 & 19.
+      IF (KZ(9).GT.0) THEN
           CALL BINDAT
-          IF (KZ(8).GT.3) THEN
+          IF (KZ(9).GT.1.AND.NMERGE.GT.0) THEN
               CALL HIDAT
           END IF
       END IF
@@ -309,7 +309,7 @@
       AS(8) = RDENS(2)
       AS(9) = RDENS(3)
       AS(10) = TTOT/TCR
-      AS(11) = TSCALE
+      AS(11) = TSTAR
       AS(12) = VSTAR
       AS(13) = RC
       AS(14) = NC
@@ -356,7 +356,7 @@
    94             CONTINUE
 *       Determine the current ghost and merger index.
                   CALL FINDJ(J1,JG2,IM2)
-*       Distinguish netween quartet and quintet.
+*       Distinguish between quartet and quintet.
                   IF (NAME(J2).LE.NZERO) THEN
                       IF (JG.LE.N) THEN
                           BODYS(JG) = CM(2,IM)
@@ -463,11 +463,15 @@
 *     CLOSE (UNIT=3)
 *
 *       Produce output file for tidal tail members.
-   99 IF (KZ(3).LE.3.AND.NTAIL.GT.0) THEN
+   99 IF (KZ(3).LE.3) THEN
           IF (SECOND) THEN
              OPEN (UNIT=33,STATUS='NEW',FORM='UNFORMATTED',FILE='OUT33')
              SECOND = .FALSE.
           END IF
+          NK = 13
+          WRITE (33) NTAIL, MODEL, NK
+*
+      IF (NTAIL.GT.0) THEN
           DO 110 I = ITAIL0,NTTOT
               BODYS(I) = BODY(I)
               DO 105 K = 1,3
@@ -483,14 +487,14 @@
   115     CONTINUE
           AS(10) = TTOT
           AS(11) = RBAR
-          AS(12) = TSCALE
+          AS(12) = TSTAR
           AS(13) = VSTAR
           NK = 13
-          WRITE (33)  NTAIL, NK
           WRITE (33)  (AS(K),K=1,NK), (BODYS(J),J=ITAIL0,NTTOT),
      &                ((XS(K,J),K=1,3),J=ITAIL0,NTTOT),
      &                ((VS(K,J),K=1,3),J=ITAIL0,NTTOT),
      &                (NAME(J),J=ITAIL0,NTTOT)
+      END IF
       END IF
 *
 *       Include all stars in same file (KZ(3) > 3; astrophysical units). 
@@ -520,7 +524,7 @@
   125         CONTINUE
               BODYS(NP) = BODY(I)*SMU
   130     CONTINUE
-          WRITE (34,140)  NP, N1, (TIME+TOFF)*TSCALE, RBAR, VSTAR,
+          WRITE (34,140)  NP, N1, (TIME+TOFF)*TSTAR, RBAR, VSTAR,
      &                    (RDENS(K),K=1,3), (RG(K),K=1,3), (VG(K),K=1,3)
   140     FORMAT (' ',2I6,F8.1,2F6.2,3F7.3,1P,6E10.2)
           DO 150 I = 1,NP

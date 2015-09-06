@@ -22,8 +22,9 @@
       DATA ITIME /0/
 *
 *
-*       Set large circularization time for merged binary.
-      IF (RADIUS(I1).EQ.0.0D0.OR.RADIUS(I2).EQ.0.0D0) THEN
+*       Set large circularization time for merged binary or BHs.
+      IF (RADIUS(I1).EQ.0.0D0.OR.RADIUS(I2).EQ.0.0D0.OR.
+     &   (KSTAR(I1).EQ.14.AND.KSTAR(I2).EQ.14)) THEN
           TC = 1.0D+10
           GO TO 30
       END IF
@@ -88,25 +89,25 @@
       IF (RADIUS(I1).GE.RADIUS(I2)) THEN
           M21 = BODY(I2)/BODY(I1)
           R21 = RADIUS(I2)/RADIUS(I1)
-	  RP1 = RP/RADIUS(I1)
+          RP1 = RP/RADIUS(I1)
       ELSE
-	  M21 = BODY(I1)/BODY(I2)
+          M21 = BODY(I1)/BODY(I2)
           R21 = RADIUS(I1)/RADIUS(I2)
-	  RP1 = RP/RADIUS(I2)
+          RP1 = RP/RADIUS(I2)
       END IF
 *
-*	Evaluate damping coefficient.
+*       Evaluate damping coefficient.
       RR = RP1*(1.0 + ES0)
       CONST = 2.0*(AT0(1)*(Q(1)/W(1))**2*(1.0 + M21)*M21 + 
      &             AT0(2)*(Q(2)/W(2))**2*((1.0 + M21)/M21**2)*R21**8)/
      &                                                         RR**8
 *
-*       Adopt WD scaling for any NS to avoid numerical problem.
-      IF (KSTAR(I1).EQ.13.OR.KSTAR(I2).EQ.13) THEN
+*       Adopt WD scaling for any NS/BH to avoid numerical problem.
+      IF (KSTAR(I1).GE.13.OR.KSTAR(I2).GE.13) THEN
           CONST = 1.0D-04*CONST
       END IF
 *
-*	Form rational function approximation to Hut solution.
+*       Form rational function approximation to Hut solution.
       FF = (( A(2)*ES0 + A(1))*ES0 + 1.0 )/
      &     (( B(2)*ES0 + B(1))*ES0 + 1.0 )
 *     FF = MIN(FF,0.999D0)
@@ -118,7 +119,7 @@
 *       Obtain the new eccentricity.
       Z = (TIME - TIME0)*CONST + FF
       ECC = (-1.0 + C(1)*Z - SQRT(C(2)*Z**2 + C(3)*Z + C(4)))
-     &		                             /(C(5) + C(6)*Z)
+     &                                       /(C(5) + C(6)*Z)
 *
       ECC = MAX(ECC,ECCM)
       RP = RP*(1.0 + ES0)/(1.0 + ECC)

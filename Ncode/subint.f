@@ -14,6 +14,11 @@
 *
 *       Determine correct index after restart (NNTB = 0 initially).
       IF (IRUN.EQ.0) THEN
+          IF (NNTB.GT.NPAIRS) THEN
+              WRITE (6,60)  NNTB, NPAIRS
+   60         FORMAT (' RESTART WARNING    NNTB NPAIRS ',2I5)
+              NNTB = NPAIRS
+          END IF
           IRUN = 1
           TI = 1.0D+10
 *       Find smallest sum by looping backwards (avoids multiple entries).

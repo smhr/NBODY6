@@ -37,6 +37,7 @@
 *       Revised 21st January 2011 by A. D. Railton
 *       to include the pre-mainsequence evolution for 0.1-8 solar masses 
 *       with solar metallicity. New timescale (15) added.
+*       Railton, Tout & Aarseth, Pub.Ast.Soc.Aust. 31, 17 (2014).
 *       KW=-1 for preMS evolution.
 *
 *       ------------------------------------------------------------

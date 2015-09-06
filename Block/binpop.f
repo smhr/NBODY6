@@ -138,7 +138,7 @@
               IC3 = 0
               ZMB = (BODY(I1) + BODY(I2))*ZMBAR
 *       Include minimum period (copy RANGE; at least 1 day).
-              PMIN = MAX(RANGE,1.0D0)
+              PMIN = MAX(RANGE,1.0D0)  ! Note RANGE is now minimum period.
               IT = 0
    35         XR = RAN2(IDUM1)
 *       Generate period distribution (Pavel Kroupa: MN 277, 1491, eq.11b).
@@ -201,10 +201,10 @@
                   ELSE
                       ECC = 0.9*ECC
                   END IF
-                  WRITE (17,46)  I1, I2, ECC, SEMI, SEMI*(1.0-ECC), RT
+                  WRITE (51,46)  I1, I2, ECC, SEMI, SEMI*(1.0-ECC), RT
    46             FORMAT (12X,'REDUCE ECC:    I1 I2 E A PM RT ',
      &                                        2I5,F7.3,1P,3E10.2)
-                  CALL FLUSH(17)
+                  CALL FLUSH(51)
                   GO TO 42
               END IF
           END IF

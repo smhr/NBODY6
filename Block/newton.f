@@ -15,9 +15,16 @@
           ZMOD = FLOAT(ISLOW(IMOD))
 *     END IF
 *
+*       Include improved tolerance near small pericentre (R/a < 1.0D-02).
+      IF (R(IP)*ABS(H(IP))/BODY(N+IP).LT.5.0D-03) THEN
+          TOL = 1.0D-10
+      ELSE
+          TOL = 1.0D-08
+      END IF
+*
       DTU0 = DTAU(IP)
 *       Note TD4 is 1/2 fourth derivative and TD5 is 1/4 fifth derivative.
-      DO 10 I = 1,10
+      DO 10 I = 1,15   ! above 10 iterations is quite rare.
           FX = (((((ZZ*TD6*DTU + ONE30*TD5)*DTU + ONE12*TD4)*DTU +
      &             ONE6*TDOT3(IP))*DTU + 0.5*TDOT2(IP))*DTU + R(IP))*DTU
           FD = ((((ONE120*TD6*DTU + ONE6*TD5)*DTU + ONE3*TD4)*DTU +
@@ -34,7 +41,7 @@
               DTU = DTU0
           END IF
 *      Note last value of DTU ensures the actual tolerance is < 1D-12.
-          IF (ABS(FX).LT.1.0D-08.AND.DTU.GT.0.0D0) GO TO 30
+          IF (ABS(FX).LT.TOL.AND.DTU.GT.0.0D0) GO TO 30
    10 CONTINUE
 *
       WRITE (6,20)  NSTEPU, FX, FD, DTU, DTU0

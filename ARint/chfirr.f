@@ -21,15 +21,15 @@
 *
 *
 *       Update perturber list at frequent intervals.
-      IF (IR.GT.0) THEN
-          CALL CHLIST(ICH)
-      ELSE
-          NSKIP = NSKIP + 1
-          IF (NSKIP.GE.10) THEN
-              CALL CHLIST(ICH)
-              NSKIP = 0
-          END IF
-      END IF
+*     IF (IR.GT.0) THEN
+*         CALL CHLIST(ICH)
+*     ELSE
+*         NSKIP = NSKIP + 1
+*         IF (NSKIP.GE.10) THEN
+*             CALL CHLIST(ICH)
+*             NSKIP = 0
+*         END IF
+*     END IF
 *
 *       Subtract all close perturber forces acting on c.m. body #ICH.
       RPERT2 = CMSEP2*(0.5*RSUM)**2
@@ -87,9 +87,9 @@
    40 CONTINUE
 *
 *       Sum each perturber contribution over the chain components.
-      KDUM = 0
       IM1 = 0
       DO 70 LL = 2,NPC
+          KDUM = 0       ! this deals with two binary perturbers (8/14).
           K = LISTC(LL)
           A1 = X(1,K) - XI(1)
           A2 = X(2,K) - XI(2)
@@ -137,8 +137,6 @@
               END IF
    50     CONTINUE
 *
-*       Reset dummy index after use (otherwise bug with two KS pairs).
-          KDUM = 0
           GO TO 70
 *
 *       Sum over individual components of pair #J using c.m. approximation.

@@ -271,7 +271,7 @@
 *       Activate chaos indicator for calling KSTIDE from RESET.
               KSTARM(IM) = -1
               GO TO 40
-	  ELSE IF (IDIS.EQ.-1) THEN
+          ELSE IF (IDIS.EQ.-1) THEN
               WRITE (6,23)  TTOT, NAME(I), IC, ECC, EMAX, SEMI, QPERI,
      &                      EDAV, QPERI/RM
    23         FORMAT (' ECCMOD SPIRAL    T NAM IC E EX A QP EDAV QP/R ',

@@ -7,6 +7,7 @@
       INCLUDE 'commonc.h'
       INCLUDE 'common2.h'
       COMMON/CHREG/  TIMEC,TMAX,RMAXC,CM(10),NAMEC(6),NSTEP1,KZ27,KZ30
+      COMMON/CPERT/  RGRAV,GPERT,IPERT,NPERT
       REAL*8  M,MB,MB1,R2(NMX,NMX),XCM(3),VCM(3),XX(3,3),VV(3,3),
      &        A1(3),A2(3),XREL(3),VREL(3),EI(3),HI(3),HO(3)
       INTEGER  IJ(NMX)
@@ -147,7 +148,8 @@
       ALPHA = 180.0*ALPHA/3.1415
       IF (PMIN.GT.PCRIT.AND.SEMI.GT.0.0.AND.SEMI1.GT.0.0.AND.
      &    RB.GT.SEMI) THEN
-          IF (RDOT3.GT.0.0.AND.R3.GT.3.0*SEMI*(1.0 + ECC1)) THEN
+*       Delay termination until perturbation < 10^{-6} (includes CHAIN B-B).
+          IF (R3.GT.SEMI1.AND.GPERT.LT.1.0D-06) THEN
           ITERM = -1
           WRITE (6,20)  NAMEC(I1), NAMEC(I2), NAMEC(I3), ECC, EMAX,
      &                  ECC1, SEMI, SEMI1, PMIN, PCRIT, ALPHA
@@ -159,13 +161,13 @@
           Q0 = M(I3)/MB
           WRITE (81,30)  TIMEC, RI, NAMEC(I3), Q0, ECC, EMAX, ECC1,
      &                   SEMI, SEMI1, PCRIT/PMIN, ALPHA
-   30     FORMAT (F8.1,F5.1,I6,F6.2,3F6.3,1P,2E10.2,0P,F5.2,F8.1)
+   30     FORMAT (2F8.4,I6,F6.2,3F6.3,1P,2E10.2,0P,F5.2,F8.1)
           CALL FLUSH(81)
           END IF
 *       Include termination test for wide triple system (exclude ECC1 > 0.9).
       ELSE IF (PMIN.GT.3.0*SEMI*(1.0 + ECC).AND.SEMI.GT.0.0.AND.
      &         ECC1.LT.0.9) THEN
-*       Wait for favourable configuration (R > SEMI, R3 > 3*SEMI & RDOT3 > 0.
+*       Wait for favourable configuration (R > SEMI, R3 > SEMI1 & RDOT3 > 0.
           IF (RB.GT.SEMI.AND.R3.GT.SEMI1.AND.RDOT3.GT.0.0) THEN
               APO = SEMI*(1.0 + ECC)
               WRITE (6,40)  ECC, ECC1, ALPHA, RB, R3, PCRIT, PMIN, APO

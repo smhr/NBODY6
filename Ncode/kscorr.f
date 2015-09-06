@@ -8,7 +8,7 @@
       COMMON/SLOW0/  RANGE,ISLOW(10)
       REAL*8  UI(4),UIDOT(4),FP(6),FD(6),FREG(4),FRD(4),A1(3,4),A(8),
      &        PR(4),PRD(4),U2(4),U3(4),U4(4),U5(4),FD1(3)
-      PARAMETER  (ITLOW=2)
+      REAL*8  XI(6),VI(6)
 *
 *
 *       Convert from physical to regularized derivative using T' = R.
@@ -20,6 +20,7 @@
 *
 *       Include KS slow-down factor in the perturbation if ZMOD > 1.
       IF (KZ(26).GT.0) THEN
+!$omp critical
           IMOD = KSLOW(IPAIR)
           IF (IMOD.GT.1) THEN
               ZMOD = FLOAT(ISLOW(IMOD))
@@ -29,6 +30,7 @@
                   FD1(K) = ZMOD*FD1(K)
     5         CONTINUE
           END IF
+!$omp end critical
       END IF
 *
 *       Predict DH from Taylor series derivatives and save temporary value.
@@ -51,19 +53,12 @@
       DTZ = DT4*Z4
       DH0 = (0.5D0*HDOT2(IPAIR)*DTU + HDOT(IPAIR))*DTU
 *
-*       Use extra iteration and new KSPERT for large perturbation.
-*     IF (GAMMA(IPAIR).LT.1.0D-20) THEN
-          ITMAX = ITLOW
-*     ELSE
-*         ITMAX = ITLOW + 1
-*         I1 = 2*IPAIR - 1
-*         NNB0 = LIST(1,I1)
-*         I = N + IPAIR
-*         BODYIN = 1.0/BODY(I)
-*     END IF
+*       Activate perturbation evaluation above 1D-04 after one iteration.
+      ITP = 0
+      IF (GAMMA(IPAIR).GT.1.0D-04) ITP = 1
 *
 *       Perform iteration with or without re-calculating perturbation.
-      DO 40 ITER = 1,ITMAX
+      DO 40 ITER = 1,2
 *
 *       Obtain new transformation matrix.
           CALL MATRIX(UI,A1)
@@ -121,25 +116,21 @@
 *       Update the physical distance for next iteration or final solution.
           RI = UI(1)**2 + UI(2)**2 + UI(3)**2 + UI(4)**2
 *
-*       Choose between old and new perturbation (skip last time).
-*         IF (ITER.GT.ITMAX) THEN
-*         IF (GAMMA(IPAIR).LT.1.0D-04) THEN
-*             DO 30 K = 1,3
-*                 FD(K) = RI*FD1(K)
-*  30         CONTINUE
-*         ELSE
+*       Choose between old and optional new perturbation (first iteration).
+          IF (ITER.EQ.ITP) THEN
 *       Transform to improved coordinates & velocities.
-*             CALL KSTRAN(IPAIR,I1,I,BODYIN,RI,UI,UIDOT,XI,VI)
+              I1 = 2*IPAIR - 1
+              CALL KSTRAN(I1,UI,UIDOT,XI,VI)
 *
 *       Re-calculate the perturbing force & derivative.
-*             CALL KSPERT(I1,NNB0,XI,VI,FP,FD)
+              NNB0 = LIST(1,I1)
+              CALL KSPERT(I1,NNB0,XI,VI,FP,FD)
+          END IF
 *
 *       Convert to regularized derivative (note slow-down not active).
-*             DO 35  K = 1,3
-*                 FD(K) = RI*FD(K)
-*  35         CONTINUE
-*         END IF
-*         END IF
+          DO 35  K = 1,3
+              FD(K) = RI*FD(K)
+   35     CONTINUE
 *
 *       Re-evaluate DH by adding Hermite corrector.
           HD = 2.0D0*HD

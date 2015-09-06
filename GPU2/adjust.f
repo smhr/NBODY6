@@ -56,7 +56,7 @@
       VIR = POT - VIR
 *       Note angular momentum term is contained in virial energy (#14=1/2).
       Q = ZKIN/VIR
-      E(3) = ZKIN - POT
+      E(3) = ZKIN - POT + EPL
 *       Modify single particle energy by tidal energy (except pure 3D).
       IF (KZ(14).NE.3) THEN
           E(3) = E(3) + ETIDE
@@ -74,7 +74,7 @@
           TCR = TCR*SQRT(2.0*Q)
       END IF
 *       Form provisional total energy.
-      ETOT = ZKIN - POT + ETIDE
+      ETOT = ZKIN - POT + ETIDE + EPL
 *
 *       Include KS pairs, triple, quad, mergers, collisions & chain.
       ETOT = ETOT + EBIN + ESUB + EMERGE + ECOLL + EMDOT + ECDOT
@@ -128,8 +128,8 @@
           RHOD = 1.0
           RHOM = 1.0
           RC = RSCALE
-          RC2 = RC**2
-          RC2IN = 1.0/RC2
+          RC22 = RC**2
+          RC2IN = 1.0/RC22
       END IF
 *
 *       Take the Sun as reference for plotting planetesimal disk members.
@@ -184,7 +184,7 @@
           RMIN = 4.0*RSCALE/(FLOAT(N)*RHOD**0.3333)
 *       Include alternative expression based on core radius (experimental).
           IF (KZ(16).GT.1.AND.NC.LT.0.01*N) THEN
-              RMIN = 0.01*RC/FLOAT(NC)**0.3333
+              RMIN = MAX(RMIN,0.01*RC/FLOAT(NC)**0.3333)
           END IF
 *       Use harmonic mean to reduce fluctuations (avoid initial value).
           IF (TIME.GT.0.0D0) RMIN = SQRT(RMIN0*RMIN)
@@ -275,7 +275,7 @@
       SECS = 3600.0*IHOUR + 60.0*IMIN + ISEC
       WRITE (6,45)  TTOT, Q, DE, BE(3), RMIN, DTMIN, ICR, DELTA1, E(3),
      &              DETOT, IHOUR, IMIN, ISEC
-   45 FORMAT (/,' ADJUST:  TIME =',F8.2,'  Q =',F5.2,'  DE =',1P,E10.2,
+   45 FORMAT (/,' ADJUST:  TIME =',F8.2,'  Q =',F5.2,'  DE =',1P,E9.1,
      &          '  E =',0P,F10.6,'  RMIN =',1P,E8.1,'  DTMIN =',E8.1,
      &          '  TC =',0P,I5,'  DELTA =',1P,E9.1,'  E(3) =',0P,F10.6,
      &          '  DETOT =',F10.6,'  WTIME =',I4,2I3)
@@ -381,7 +381,7 @@
       END IF
 *
 *       Include optional KS reg of binaries outside standard criterion.
-      IF (KZ(8).GT.0.AND.N.GE.5000.AND.DMOD(TIME,DTK(10)).EQ.0.0D0) THEN
+      IF (KZ(8).GE.3.AND.N.GE.5000.AND.DMOD(TIME,DTK(10)).EQ.0.0D0) THEN
 *       Note DMOD condition needed for CALL KSREG and CALL STEPS.
           DTCL = 30.0*DTMIN
           RCL = 10.0*RMIN

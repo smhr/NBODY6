@@ -10,8 +10,6 @@
       INTEGER  IS(2)
       SAVE  TTIDE,IONE
       DATA  ECCM,ECCM2,TTIDE,IONE  /0.002,0.00000399,0.0D0,0/
-      SAVE SUM
-      DATA SUM /0.0D0/
 *
 *
 *       Define indices of KS components.
@@ -241,8 +239,8 @@
                   RA = SEMI*(1.0 + ECC)
                   SR = RP/RA
                   ICIRC = -1
-                  JCOMP = J
-                  CALL INDUCE(IPAIR,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
+                  JCL = J
+                 CALL INDUCE(IPAIR,JCL,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
                   WRITE (6,28)  NAME(J), H(IPAIR), SEMI, A1, RP, EDAV,
      &                          SQRT(ECC2), EMAX, SR
    28             FORMAT (' HIERARCHY    NMJ H A0 A1 RP EDAV E1 EX SR ',

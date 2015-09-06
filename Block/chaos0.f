@@ -50,10 +50,10 @@
           IDIS = 1
       END IF
 *
-*	Check whether spiral is indicated (unless collision or ECC > 1).
+*       Check whether spiral is indicated (unless collision or ECC > 1).
       IF (ECC.LT.EC.AND.IDIS.EQ.0.AND.ECC.LT.1.0) THEN
           IDIS = -1
-	  RETURN
+          RETURN
       END IF
 *
 *       Obtain R(c) & Ecrit.

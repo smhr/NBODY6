@@ -22,7 +22,7 @@
       I1 = 2*IPAIR - 1
       I2 = I1 + 1
       NTTRY = NTTRY + 1
-      JCOMP = IFIRST
+      JCL = IFIRST
       KS2 = 0
       RMAX2 = 1.0
       TTOT = TIME + TOFF
@@ -34,7 +34,7 @@
       IF (LIST(1,J1).LE.2) J1 = I
       NNB2 = LIST(1,J1) + 1
 *
-*       Find the dominant body (JCOMP) and nearest perturber (JMAX).
+*       Find the dominant body (JCL) and nearest perturber (JMAX).
       RCRIT2 = 1.0D+04*RMIN2
       ITER = 0
     5 PERT1 = 0.0
@@ -51,8 +51,8 @@
           IF (PERT.GT.PERT2) THEN 
               IF (PERT.GT.PERT1) THEN
                   RJMIN2 = RIJ2
-                  JMAX = JCOMP
-                  JCOMP = J
+                  JMAX = JCL
+                  JCL = J
                   PERT2 = PERT1
                   PERT1 = PERT
               ELSE
@@ -70,9 +70,9 @@
           IF (ITER.LT.10) GO TO 5
       END IF
 *
-      RDOT = (X(1,I) - X(1,JCOMP))*(XDOT(1,I) - XDOT(1,JCOMP)) +
-     &       (X(2,I) - X(2,JCOMP))*(XDOT(2,I) - XDOT(2,JCOMP)) +
-     &       (X(3,I) - X(3,JCOMP))*(XDOT(3,I) - XDOT(3,JCOMP))
+      RDOT = (X(1,I) - X(1,JCL))*(XDOT(1,I) - XDOT(1,JCL)) +
+     &       (X(2,I) - X(2,JCL))*(XDOT(2,I) - XDOT(2,JCL)) +
+     &       (X(3,I) - X(3,JCL))*(XDOT(3,I) - XDOT(3,JCL))
 *
 *       Specify larger perturbation for optional chain regularization.
       IF ((KZ(30).GT.0.OR.KZ(30).EQ.-1).AND.NCH.EQ.0) THEN
@@ -81,8 +81,10 @@
       ELSE
           GSTAR = GMIN
           KCHAIN = 0
-*       Specify indicator -1 for allowing TRIPLE & QUAD but not CHAIN.
-          IF (KZ(30).EQ.-2) KCHAIN = -1
+*       Enforce CHAIN for BH component(s), otherwise allow TRIPLE/QUAD.
+          IF (KZ(30).EQ.-1) THEN
+              IF (MAX(KSTAR(I1),KSTAR(I2)).EQ.14) KCHAIN = 1
+          END IF
       END IF
 *
 *       Only accept inward motion or small secondary perturbation.
@@ -90,13 +92,13 @@
       IF (RDOT.GT.0.0.OR.PERT3.GT.100.0*GSTAR) GO TO 100
 *
 *       Include impact parameter test to distinguish different cases.
-      A2 = (XDOT(1,I) - XDOT(1,JCOMP))**2 + 
-     &     (XDOT(2,I) - XDOT(2,JCOMP))**2 +
-     &     (XDOT(3,I) - XDOT(3,JCOMP))**2
+      A2 = (XDOT(1,I) - XDOT(1,JCL))**2 + 
+     &     (XDOT(2,I) - XDOT(2,JCL))**2 +
+     &     (XDOT(3,I) - XDOT(3,JCL))**2
       RIJ = SQRT(RJMIN2)
-      A3 = 2.0/RIJ - A2/(BODY(I) + BODY(JCOMP))
+      A3 = 2.0/RIJ - A2/(BODY(I) + BODY(JCL))
       SEMI1 = 1.0/A3
-      A4 = RDOT**2/(SEMI1*(BODY(I) + BODY(JCOMP)))
+      A4 = RDOT**2/(SEMI1*(BODY(I) + BODY(JCL)))
       ECC1 = SQRT((1.0D0 - RIJ/SEMI1)**2 + A4)
       PMIN = SEMI1*(1.0D0 - ECC1)
 *
@@ -110,12 +112,29 @@
 *       Quit on hyperbolic orbit with large impact parameter.
       IF (ECC1.GT.1.0.AND.PMIN.GT.50.0*SEMI) GO TO 100
 *
+*       Print optional diagnostics for strong three-body interactions.
+      IF (KZ(45).GT.3.AND.BODY(I).GT.2.0D-04.AND.PMIN.LT.10.0*SEMI) THEN
+          IF (BODY(I1).GT.BODY(I2)) THEN
+              NMX = NAME(I2)
+          ELSE
+              NMX = NAME(I1)
+          END IF
+          HI = 0.5*A2 - (BODY(I) + BODY(JCL))/RIJ
+          VINF = 0.0
+          IF (HI.GT.0.0) VINF = SQRT(2.0*HI)*VSTAR
+          WRITE (49,12)  (TIME+TOFF)*TSTAR, NMX, A0, ECC, VINF,
+     &                    NAME(JCL), BODY(JCL)*SMU, ECC1, PMIN
+   12     FORMAT (' IMPACT     T NM A E VINF NMJ E1 PM ',
+     &              F7.1,I6,1P,E9.1,0P,F7.3,F5.1,I6,F5.1,F8.4,1P,E10.2)
+          CALL FLUSH(49)
+      END IF
+*
 *       Include rectification for non-circular binaries with KSTAR = 10 & 12.
       IF (KZ(27).EQ.2.AND.KSTAR(I).GE.10.AND.KSTAR(I).LE.18) THEN
           IF (ECC.GT.0.1.AND.MOD(KSTAR(I),2).EQ.0) THEN
               RM = MAX(RADIUS(I1),RADIUS(I2))
               ICIRC = -1
-              CALL INDUCE(IPAIR,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
+              CALL INDUCE(IPAIR,JCL,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
               WRITE (6,15)  NAME(I1), NAME(I2), KSTAR(I1), KSTAR(I2),
      &                      KSTAR(I), LIST(1,I1), ECC, SEMI, RM, PMIN,
      &                      GAMMA(IPAIR), TC, 360.0*ANGLE/TWOPI, EMAX
@@ -158,20 +177,20 @@
 *       Form binding energy of inner & outer binary.
       EB = BODY(I1)*BODY(I2)*H(IPAIR)/BODY(I)
       IF(ABS(EB).LT.1.0D-10) EB = -1.0D-10
-      EB1 = -0.5*BODY(JCOMP)*BODY(I)/SEMI1
+      EB1 = -0.5*BODY(JCL)*BODY(I)/SEMI1
 *
-*       Obtain the perturbing force on body #I & JCOMP (note the skip).
-      CALL FPERT(I,JCOMP,NP,PERT)
+*       Obtain the perturbing force on body #I & JCL (note the skip).
+      CALL FPERT(I,JCL,NP,PERT)
 *
 *       Choose maximum of dominant scalar & total vectorial perturbation.
-      PERT = PERT*RJMIN2/(BODY(I) + BODY(JCOMP))
-      PERT4 = 2.0*RJMIN2*RIJ*PERT2/(BODY(I) + BODY(JCOMP))
+      PERT = PERT*RJMIN2/(BODY(I) + BODY(JCL))
+      PERT4 = 2.0*RJMIN2*RIJ*PERT2/(BODY(I) + BODY(JCL))
       PERTM = MAX(PERT4,PERT)
 *
 *       Use combined semi-major axis for binary-binary collision.
-      IF (JCOMP.GT.N) THEN
-          JPAIR = JCOMP - N
-          SEMI2 = -0.5D0*BODY(JCOMP)/H(JPAIR)
+      IF (JCL.GT.N) THEN
+          JPAIR = JCL - N
+          SEMI2 = -0.5D0*BODY(JCL)/H(JPAIR)
           J1 = 2*JPAIR - 1
           EB2 = -0.5*BODY(J1)*BODY(J1+1)/SEMI2
 *       Define SEMI0 as smallest binary in case IPAIR denotes widest pair.
@@ -179,21 +198,22 @@
           SEMIX = MAX(SEMI,SEMI2)
           APO = APO + MAX(ABS(SEMI2),R(JPAIR))
           SEMI = SEMI + SEMI2
-*       Do not allow negative or soft cross section.
-          IF (1.0/SEMI.LT.0.5/RMIN) GO TO 100
 *       Consider merger for PMIN > SEMI and large semi-major axis ratio.
-          IF (PMIN.GT.SEMI.AND.SEMI2.GT.20.0*SEMI0) GO TO 30
+          IF (PMIN.GT.SEMI.AND.SEMI2.GT.20.0*SEMI0.AND.
+     &        1.0/SEMI.LT.0.5/RMIN) GO TO 30
+*       Do not allow negative SEMI or soft cross section.
+          IF (1.0/SEMI.LT.0.5/RMIN.AND.PMIN.GT.2.0*SEMI) GO TO 100
       END IF
 *
 *       Check separation in case of chain regularization.
       IF (KCHAIN.GT.0) THEN
 *       Form effective gravitational radius (combine triple & quad).
           EBT = EB + EB1
-          ZMM = BODY(I1)*BODY(I2) + BODY(I)*BODY(JCOMP)
+          ZMM = BODY(I1)*BODY(I2) + BODY(I)*BODY(JCL)
 *       Set length of chain for decision-making (also used at termination).
           RSUM = R(IPAIR) + RIJ
           RI = R(IPAIR)
-          IF (JCOMP.GT.N) THEN
+          IF (JCL.GT.N) THEN
               EBT = EBT + EB2
               ZMM = ZMM + BODY(J1)*BODY(J1+1)
               RSUM = RSUM + R(JPAIR)
@@ -205,18 +225,19 @@
 *       Save initial energy in binaries for routine SETSYS.
           EBCH0 = EBT - EB1
 *       Use RIJ instead of RSUM in 3*RGRAV test (increases initial RIJ).
-          IF (RIJ.GT.MAX(3.0*RGRAV,RMIN).OR.RSUM.GT.2.0*RMIN) GO TO 30
-          GI = 2.0*BODY(JCOMP)*(RI/RIJ)**3/BODY(I)
+          IF ((RIJ.GT.MAX(3.0*RGRAV,RMIN).OR.RSUM.GT.2.0*RMIN).AND.
+     &        PMIN.GT.2.0*RMIN) GO TO 30
+          GI = 2.0*BODY(JCL)*(RI/RIJ)**3/BODY(I)
 *       Enforce KS orbit using MERGE for high eccentricity if PMIN > 10*RI.
           IF (ECC1.GT.0.99.AND.PMIN.GT.10.0*RI.AND.
      &        PERTM.LT.GMAX) GO TO 40
-          IF (KZ(27).GT.0.AND.JCOMP.GT.N) THEN
+          IF (KZ(27).GT.0.AND.JCL.GT.N) THEN
               IF (SEMI0.LT.SEMI2) J1 = I1
               RT = 4.0*MAX(RADIUS(J1),RADIUS(J1+1))
 *       Do not allow large distance ratio for nearly synchronous binary.
               IF (SEMI0.GT.RT.AND.RI.GT.25.0*SEMI0) GO TO 30
               IF (MIN(SEMI0,SEMI2).LT.0.05*RIJ) THEN
-              IF (MAX(SEMI0,SEMI2).LT.0.1*RIJ) GO TO 30
+                  IF (MAX(SEMI0,SEMI2).LT.0.1*RIJ) GO TO 30
               END IF
           END IF
       END IF
@@ -227,20 +248,20 @@
       END IF
 *
 *       Adopt triple, quad or chain regularization for strong interactions.
-*     IF ((APO.GT.0.01*RMIN.OR.JCOMP.GT.N).AND.PMIN.GT.APO) GO TO 30
-      IF ((APO.GT.0.01*RMIN.OR.JCOMP.GT.N).AND.PMIN.GT.1.5*APO) GO TO 30
+*     IF ((APO.GT.0.01*RMIN.OR.JCL.GT.N).AND.PMIN.GT.APO) GO TO 30
+      IF ((APO.GT.0.01*RMIN.OR.JCL.GT.N).AND.PMIN.GT.1.5*APO) GO TO 30
 *     IF (APO.LE.0.01*RMIN.AND.PMIN.GT.2.0*APO) GO TO 30
       IF ((RIJ.GT.RMIN.AND.SEMI1.GT.0.0).OR.RIJ.GT.2.0*RMIN) GO TO 100
       IF (PERTM.GT.100.0*GSTAR) GO TO 30
-   16 IF (JCOMP.GT.N.AND.PMIN.GT.0.1*RMIN) THEN
+   16 IF (JCL.GT.N.AND.PMIN.GT.0.1*RMIN) THEN
           IF (PMIN.GT.A0 + SEMI2) GO TO 30
       END IF
-      IF (JCOMP.GT.N.AND.PMIN.GT.4.0*SEMIX.AND.
+      IF (JCL.GT.N.AND.PMIN.GT.4.0*SEMIX.AND.
      &   (ECC1.GT.0.9.AND.ECC1.LT.1.0)) GO TO 30
 *
 *       Check almost stable triples (factor 1.2 is experimental).
-      IF (JCOMP.LE.N.AND.PMIN.GT.2.5*SEMI) THEN
-          CALL HISTAB(IPAIR,JCOMP,PMIN,RSTAB)
+      IF (JCL.LE.N.AND.PMIN.GT.2.5*SEMI) THEN
+          CALL HISTAB(IPAIR,JCL,PMIN,RSTAB)
           RA = SEMI1*(1.0 + ECC1)
           IF (SEMI1.LT.0.0) RA = RIJ
           GI = PERT*(RA/RIJ)**3
@@ -260,16 +281,16 @@
           IF (PMIN.GT.2.5*APO) GO TO 40
       END IF
 *
-      IF (JCOMP.GT.N) THEN
+      IF (JCL.GT.N) THEN
           IF (RIJ.GT.10.0*APO) GO TO 100
       END IF
 *       Skip chain if merged binary or chain c.m. (defined by NAME <= 0).
-      IF (NAME(I).LE.0.OR.NAME(JCOMP).LE.0) GO TO 100
+      IF (NAME(I).LE.0.OR.NAME(JCL).LE.0) GO TO 100
 *
 *       Compare with existing subsystem of same type (if any).
       IF (NSUB.GT.0.AND.KCHAIN.LE.0) THEN
           PERIM = R(IPAIR) + RIJ
-          IF (JCOMP.GT.N) PERIM = PERIM + R(JPAIR)
+          IF (JCL.GT.N) PERIM = PERIM + R(JPAIR)
           IGO = 0
           CALL PERMIT(PERIM,IGO)
           IF (IGO.GT.0) GO TO 100
@@ -278,36 +299,40 @@
 *       Skip all multiple regs on zero option (mergers done by #15 > 0).
       IF (KZ(30).EQ.0) GO TO 100
 *       Allow CHAIN only (#30 = -1) or TRIPLE & QUAD only (#30 < -1).
-      IF (KZ(30).EQ.-2.AND.KCHAIN.EQ.0) GO TO 100
+      IF (KZ(30).LT.0.AND.KCHAIN.EQ.0) THEN
+          KCHAIN = 1
+          IF (NCH.GT.0) KCHAIN = 0
+      END IF
+      IF (KCHAIN.GT.0.AND.RIJ.GT.20.0*SEMI) GO TO 100
 *
       WHICH1 = ' TRIPLE '
-      IF (JCOMP.GT.N) WHICH1 = ' QUAD   '
+      IF (JCL.GT.N) WHICH1 = ' QUAD   '
       IF (KCHAIN.GT.0) WHICH1 = ' CHAIN  '
 *
       IF (H(IPAIR).GT.0.0) THEN
-          WRITE (6,18)  I, JCOMP, ECC, ECC1, SEMI1, RIJ, GAMMA(IPAIR)
+          WRITE (6,18)  I, JCL, ECC, ECC1, SEMI1, RIJ, GAMMA(IPAIR)
    18     FORMAT (' HYP CHAIN    I J E E1 A1 RIJ G  ',
      &                           2I6,2F7.3,1P,3E9.1)
       END IF
 *
       IF (KZ(15).GT.1.OR.KZ(30).GT.1) THEN
           WRITE (6,20)  WHICH1, IPAIR, TTOT, H(IPAIR), R(IPAIR),
-     &                  BODY(I), BODY(JCOMP), PERT4, RIJ, PMIN,
+     &                  BODY(I), BODY(JCL), PERT4, RIJ, PMIN,
      &                  EB1/EB, LIST(1,I1)
    20     FORMAT (/,' NEW',A8,I4,'  T =',F8.2,'  H =',F6.0,
-     &              '  R =',1P,E8.1,'  M =',0P,2F7.4,'  G4 =',1P,E8.1,
+     &              '  R =',1P,E8.1,'  M =',2E8.1,'  G4 =',1P,E8.1,
      &              '  R1 =',E8.1,'  P =',E8.1,'  E1 =',0P,F6.3,
      &              '  NP =',I2)
-          CALL FLUSH(3)
+          CALL FLUSH(6)
       END IF
 *
 *       Include any close single or c.m. perturber (cf. routine SETSYS).
-      IF (JMAX.NE.JCOMP.AND.SQRT(RMAX2).LT.MIN(2.0D0*RSUM,RMIN).AND.
+      IF (JMAX.NE.JCL.AND.SQRT(RMAX2).LT.MIN(2.0D0*RSUM,RMIN).AND.
      &    NAME(JMAX).GT.0) THEN
-          IF (JCOMP.GT.N.AND.JMAX.GT.N) THEN
+          IF (JCL.GT.N.AND.JMAX.GT.N) THEN
               JCMAX = 0
           ELSE
-              WRITE (6,21)  NAME(JCOMP), NAME(JMAX), RSUM, SQRT(RMAX2)
+              WRITE (6,21)  NAME(JCL), NAME(JMAX), RSUM, SQRT(RMAX2)
    21         FORMAT (' B+2 CHAIN    NAM RSUM RMX ',2I7,1P,2E10.2)
               CALL XVPRED(JMAX,-1)
               JCMAX = JMAX
@@ -317,13 +342,13 @@
       END IF
 *
 *       Save global index of intruder for TRIPLE or CHAIN.
-      JCLOSE = JCOMP
+      JCLOSE = JCL
 *
 *       Check B-B interaction for switch of IPAIR & JPAIR or inert binary.
-      IF (KCHAIN.GT.0.AND.JCOMP.GT.N) THEN
+      IF (KCHAIN.GT.0.AND.JCL.GT.N) THEN
           K1 = 2*JPAIR - 1
           WRITE (6,22)  NAME(I1), NAME(I2), NAME(K1), NAME(K1+1),
-     &                  KSTAR(I), KSTAR(JCOMP), ECC, ECC1, A0, SEMI2,
+     &                  KSTAR(I), KSTAR(JCL), ECC, ECC1, A0, SEMI2,
      &                  RIJ, SEMI1, PMIN
    22     FORMAT (' CHAIN B-B    NAME K* E0 E1 A0 A2 RIJ A1 PM ',
      &                           4I7,2I4,2F7.3,1P,5E10.2)
@@ -342,15 +367,11 @@
 *       Include extra condition for inert binary approximation (9/3/12).
               IF (KZ(26).LT.2.AND.RIJ.GT.250.0*SEMI0) THEN
 *       Replace unperturbed near-synchronous binary by inert body in CHAIN.
-                  JCOMP = 0
+                  JCL = 0
                   WRITE (6,25)  SEMI0, RIJ, R(JPAIR), GAMMA(JPAIR)
    25             FORMAT (' INERT BINARY    A RIJ R G ',1P,4E10.2)
 *       Note compact binary may end up as KS if another component escapes.
-              ELSE
-                  JCLOSE = 0
               END IF
-          ELSE
-              JCLOSE = 0
           END IF
       END IF
 *
@@ -359,12 +380,12 @@
       KSPAIR = IPAIR
 *
 *       Include the case of two interacting KS pairs.
-      IF (JCOMP.GT.N) THEN
+      IF (JCL.GT.N) THEN
           IPHASE = 5
-*       Switch pair indices and rename JCOMP if JPAIR has smaller size.
+*       Switch pair indices and rename JCL if JPAIR has smaller size.
           IF (STEP(J1).LT.STEP(I1).AND.LIST(1,I1).GT.0) THEN
               KSPAIR = JPAIR
-              JCOMP = I
+              JCL = I
               KS2 = IPAIR
           ELSE
               KS2 = JPAIR
@@ -383,15 +404,16 @@
       END IF
 *
 *       Save KS indices and delay initialization until end of block step.
+      JCOMP = JCL
       CALL DELAY(KCHAIN,KS2)
 *
 *       Prepare procedure for chain between hierarchy and single body (9/99).
-      IF (NAME(I).LT.0.AND.NAME(I).GE.-NZERO.AND.JCOMP.LE.N) THEN
+      IF (NAME(I).LT.0.AND.NAME(I).GE.-NZERO.AND.JCL.LE.N) THEN
 *       Indentify merged ghost particle JG.
           CALL FINDJ(I1,JG,IM)
-          WRITE (6,28)  NAME(I), NAME(JCOMP), NAME(JG),ECC1, PMIN, RIJ
+          WRITE (6,28)  NAME(I), NAME(JCL), NAME(JG), ECC1, PMIN, RIJ
    28     FORMAT (' HI CHAIN    NAM E1 PM RIJ ',I7,2I6,F7.3,1P,2E10.2)
-          JJ = JCOMP
+          JJ = JCL
 *       Terminate the merger in the usual way.
           KSPAIR = IPAIR
           IPHASE = 7
@@ -410,9 +432,9 @@
           ISUB = 0
           CALL CHAIN(ISUB)
 *       Note that IPHASE = -1 now and INTGRT goes back to the beginning.
-      ELSE IF (NAME(I).LT.-NZERO.OR.NAME(JCOMP).LT.0.OR.
-     &        (NAME(I).LT.0.AND.JCOMP.GT.N)) THEN
-*       Continue until KS termination on MERGE2 or merger with JCOMP > N.
+      ELSE IF (NAME(I).LT.-NZERO.OR.NAME(JCL).LT.0.OR.
+     &        (NAME(I).LT.0.AND.JCL.GT.N)) THEN
+*       Continue until KS termination on MERGE2 or merger with JCL > N.
           IPHASE = 0
       END IF
 *
@@ -423,7 +445,7 @@
       IF (SEMI1.LT.0.0) RA = RIJ
 *
 *       Identify formation of wide quadruple before merger is accepted.
-      IF (JCOMP.GT.N.AND.ECC1.LT.1.0.AND.SEMI1.LT.0.1*RSCALE) THEN
+      IF (JCL.GT.N.AND.ECC1.LT.1.0.AND.SEMI1.LT.0.1*RSCALE) THEN
           NNB = LISTQ(1) - 1
           K = 0
 *       See whether current list contains first inner/outer component.
@@ -432,15 +454,15 @@
               IF (NAM1.EQ.LISTQ(L)) K = K + 1
    32     CONTINUE
 *       Generate diagnostics of first five outer orbits every half period.
-          IF (K.LE.5.AND.TIME.GT.QCHECK.AND.KZ(37).GT.0) THEN
-              ZMB = BODY(I) + BODY(JCOMP)
+          IF (K.LE.5.AND.TIME.GT.QCHECK.AND.KZ(15).GE.3) THEN
+              ZMB = BODY(I) + BODY(JCL)
               RI = SQRT(RI2)
               TK = SEMI1*SQRT(SEMI1/ZMB)
               QCHECK = TIME + MIN(0.5*TWOPI*TK,0.1*TCR)
               TK = DAYS*TK
 *       Check the stability criterion.
-              PCR = stability(BODY(I1),BODY(I2),BODY(JCOMP),ECC,ECC1,
-     &                                                  0.0D0)*SEMIX
+              PCR = stability(BODY(I1),BODY(I2),BODY(JCL),ECC,ECC1,
+     &                                                0.0D0)*SEMIX
               WRITE (89,33)  TTOT, NAME(2*IPAIR-1), NAM1, K, RI,
      &                       ECC1, EB, EB2, EB1, TK, PMIN, PCR
    33         FORMAT (' QUAD    T NAM LQ RI E1 EB EB2 EB1 P1 PM PC ',
@@ -473,7 +495,7 @@
           RH = 6.0*SQRT(H2/CMSEP2)
           RFAC = MAX(RFAC,RH)
 *       Extend maximum apocentre for massive systems (less perturbers).
-          IF (BODY(I) + BODY(JCOMP).GT.10.0*BODYM) RFAC = 2.0*RFAC
+          IF (BODY(I) + BODY(JCL).GT.10.0*BODYM) RFAC = 2.0*RFAC
       END IF
  
 *       Skip merger for hyperbolic & soft binding energy or large apocentre.
@@ -489,10 +511,10 @@
 *       Check tidal capture option (synchronous or evolving binary orbit).
       IF (KZ(27).GT.0) THEN
 *       Skip merger if outer component would suffer tidal dissipation.
-***       IF (SEMI1*(1.0 - ECC1).LT.4.0*RADIUS(JCOMP)) GO TO 100
+***       IF (SEMI1*(1.0 - ECC1).LT.4.0*RADIUS(JCL)) GO TO 100
 *       Do not allow merger if Roche overflow or mass loss during next orbit.
-          TK = TWOPI*SEMI1*SQRT(SEMI1/(BODY(I) + BODY(JCOMP)))
-          TM = MIN(TEV(I1),TEV(I2),TEV(JCOMP),TEV(I))
+          TK = TWOPI*SEMI1*SQRT(SEMI1/(BODY(I) + BODY(JCL)))
+          TM = MIN(TEV(I1),TEV(I2),TEV(JCL),TEV(I))
           IF (KZ(34).GT.0.AND.TM - TIME.LT.STEPX) THEN
               RT = 5.0*MAX(RADIUS(I1),RADIUS(I2))
               IF (A0.LT.RT.OR.KSTAR(I).GT.0) THEN
@@ -500,9 +522,9 @@
                   IF ((MOD(KSTAR(I),2).EQ.1.AND.DTR.LT.STEPX).OR.
      &                 DTR.LT.TK) GO TO 100
               END IF
-              IF (JCOMP.GT.N.AND.KSTAR(JCOMP).GT.0) THEN
+              IF (JCL.GT.N.AND.KSTAR(JCL).GT.0) THEN
                   CALL TRFLOW(JPAIR,DTR)
-                  IF(MOD(KSTAR(JCOMP),2).EQ.1.OR.DTR.LT.STEPX) GOTO 100
+                  IF(MOD(KSTAR(JCL),2).EQ.1.OR.DTR.LT.STEPX) GO TO 100
               END IF
           END IF
 *
@@ -511,7 +533,7 @@
           RM = MAX(RADIUS(I1),RADIUS(I2))
           IF (KSTAR(I).EQ.-2.AND.QPERI.GT.10.0*RM) THEN
               ICIRC = -1
-              CALL INDUCE(IPAIR,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
+              CALL INDUCE(IPAIR,JCL,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
               IF (TC.GT.1.0D+06) THEN
                   WRITE (6,35)  NAME(I1), KSTAR(I1), KSTAR(I2), ECC,
      &                          EMAX, QPERI/RM, EDAV, a0, PMIN, TC
@@ -539,17 +561,18 @@
               IF (MIN(TEV(I1),TEV(I2)).LT.TIME + TK) GO TO 100
           END IF
 *       Skip chaotic binary (KSTAR = -2 is treated below).
-          IF (KSTAR(I).EQ.-1.OR.KSTAR(JCOMP).EQ.-1) GO TO 100
+          IF (KSTAR(I).EQ.-1.OR.KSTAR(JCL).EQ.-1) GO TO 100
       END IF
 *
 *       Skip merger if an outer binary is fairly perturbed or not hard.
-   40 IF (JCOMP.GT.N) THEN
+   40 IF (JCL.GT.N) THEN
           IF (GAMMA(JPAIR).GT.1.0E-03.OR.EB2.GT.EBH) GO TO 100
       END IF
 *
 *       Estimate relative perturbation at apocentre from actual value.
       GI = PERT*(SEMI1*(1.0 + ECC1)/RIJ)**3
       IF (PERT.GT.GMAX.OR.GI.GT.0.02) GO TO 100
+      IF (SEMI1.LT.0.0.AND.RIJ.GT.10.0*SEMI) GO TO 100
 *
 *       Switch to direct integration for planetary systems if GI > 1D-04.
       IF (MIN(BODY(I1),BODY(I2)).LT.0.05*BODYM) THEN
@@ -577,12 +600,12 @@
 *
 *     -----------------------------------------------------------------------
 *       Form coefficients for stability test (Valtonen, Vistas Ast 32, 1988).
-*     AM = (2.65 + ECC)*(1.0 + BODY(JCOMP)/BODY(I))**0.3333
-*     FM = (2.0*BODY(JCOMP) - BODY(I))/(3.0*BODY(I))
+*     AM = (2.65 + ECC)*(1.0 + BODY(JCL)/BODY(I))**0.3333
+*     FM = (2.0*BODY(JCL) - BODY(I))/(3.0*BODY(I))
 *       Note that routine NEWTEV in MERGE2 replaces suppressed part.
 *     IF (KZ(19).GE.3) THEN
-*         TM = MIN(TEV(I1),TEV(I2),TEV(JCOMP),TEV(I))
-*         IF (MIN(NAME(I),NAME(JCOMP)).LT.0.AND.TM-TIME.LT.0.2) THEN
+*         TM = MIN(TEV(I1),TEV(I2),TEV(JCL),TEV(I))
+*         IF (MIN(NAME(I),NAME(JCL)).LT.0.AND.TM-TIME.LT.0.2) THEN
 *             GO TO 100
 *         END IF
 *     END IF
@@ -599,7 +622,7 @@
 *     -----------------------------------------------------------------------
 *
 *       Form hierarchical stability ratio (Eggleton & Kiseleva 1995).
-*     QL = BODY(I)/BODY(JCOMP)
+*     QL = BODY(I)/BODY(JCL)
 *     Q1 = MAX(BODY(I2)/BODY(I1),BODY(I1)/BODY(I2))
 *     Q3 = QL**0.33333
 *     Q13 = Q1**0.33333
@@ -607,7 +630,7 @@
 *     EK = AR*SEMI*(1.0D0 + ECC)
 *
 *       Choose the most dominant triple in case of two binaries.
-      IF (JCOMP.GT.N) THEN
+      IF (JCL.GT.N) THEN
 *       Adopt 10% fudge factor with linear dependence on smallest ratio.
           YFAC = 1.0 + 0.1*MIN(SEMI2/SEMI,SEMI/SEMI2)
       ELSE
@@ -615,11 +638,11 @@
       END IF
 *
 *       Prepare inclination evaluation for triple or widest inner binary.
-      IF (JCOMP.GT.N) THEN
+      IF (JCL.GT.N) THEN
 *       Ensure widest inner binary (swap is OK for termination or ZARE).
           IF (SEMI.LT.SEMI2) THEN
               ECC2 = (1.0 - R(JPAIR)/SEMI2)**2 +
-     &                             TDOT2(JPAIR)**2/(BODY(JCOMP)*SEMI2)
+     &                               TDOT2(JPAIR)**2/(BODY(JCL)*SEMI2)
               ECC = SQRT(ECC2)
               KPAIR = IPAIR
               IPAIR = JPAIR
@@ -627,8 +650,8 @@
               I1 = 2*IPAIR - 1
               I2 = I1 + 1
               JJ = I
-              I = JCOMP
-              JCOMP = JJ
+              I = JCL
+              JCL = JJ
               SEMIZ = SEMI2
               SEMI2 = SEMI
               SEMI = SEMIZ
@@ -644,10 +667,10 @@
       DO 42 K = 1,3
           XX(K,1) = X(K,I1)
           XX(K,2) = X(K,I2)
-          XX(K,3) = X(K,JCOMP)
+          XX(K,3) = X(K,JCL)
           VV(K,1) = XDOT(K,I1)
           VV(K,2) = XDOT(K,I2)
-          VV(K,3) = XDOT(K,JCOMP)
+          VV(K,3) = XDOT(K,JCL)
   42  CONTINUE
 *
 *       Determine the inclination (in radians).
@@ -655,7 +678,7 @@
 *
 *       Employ the basic stability criterion for fast check (ECC1 < 1).
 *     IF (ECC1.LT.1.0) THEN
-*         Q = BODY(JCOMP)/BODY(I)
+*         Q = BODY(JCL)/BODY(I)
 *         XFAC = (1.0 + Q)*(1.0 + ECC1)/SQRT(1.0 - ECC1)
 *         PCRIT = 2.8*XFAC**0.4*SEMI*(1.0 - 0.6*ANGLE/TWOPI)
 *         IF (PCRIT.GT.2.0*PMIN) GO TO 100
@@ -663,19 +686,19 @@
 *
 *       Evaluate the general stability function (Mardling 2008).
       IF (ECC1.LT.1.0.AND.YFAC.LT.1.02) THEN
-          BJ = BODY(JCOMP)
+          BJ = BODY(JCL)
           EOUT = ECC1
 *       Increase tolerance near sensitive stability boundary (RM 10/2008).
           IF (EOUT.GT.0.8) THEN
               DE = 0.5*(1.0 - EOUT)
               DE = MIN(DE,0.01D0)
 *       Evaluate outer eccentricity derivative due to dominant perturber.
-              IF (JMAX.NE.JCOMP.AND.PERT.GT.GMIN) THEN
-                  CALL EDOT(I,JCOMP,JMAX,SEMI1,ECC1,ECCDOT)
+              IF (JMAX.NE.JCL.AND.PERT.GT.GMIN) THEN
+                  CALL EDOT(I,JCL,JMAX,SEMI1,ECC1,ECCDOT)
 *       Include a small effect of positive derivative over 10 orbits.
                   IF (ECCDOT.GT.0.0) THEN
                       TK1 = TWOPI*SEMI1*
-     &                      SQRT(SEMI1/(BODY(I) + BODY(JCOMP)))
+     &                      SQRT(SEMI1/(BODY(I) + BODY(JCL)))
                       DE = DE - 10.0*MIN(ECCDOT*TK1,0.001D0)
 *                     WRITE (6,443)  ECC1, DE, ECCDOT, TK1, PERT
 * 443                 FORMAT (' EDOT!!    E1 DE ED TK G ',
@@ -684,13 +707,13 @@
               END IF
 *       Allow extra tolerance after 1000 tries (suppressed 9/3/12).
 *             IF (NMTRY.GE.1000) DE = MIN(1.0D0 - EOUT,0.02D0)
-              EOUT = EOUT - DE
+              EOUT = MIN(EOUT - DE,0.9999D0)
               PMIN = SEMI1*(1.0 - EOUT)
           END IF
           NST = NSTAB(SEMI,SEMI1,ECC,EOUT,ANGLE,BODY(I1),BODY(I2),BJ)
           IF (NST.EQ.0) THEN
               PCRIT = 0.98*PMIN*(1.0 - PERT)
-              PCR = stability(BODY(I1),BODY(I2),BODY(JCOMP),ECC,EOUT,
+              PCR = stability(BODY(I1),BODY(I2),BODY(JCL),ECC,EOUT,
      &                                                          ANGLE)
               PCR = PCR*SEMI
 *       Specify reduced peri if old criterion < PCRIT/2 (avoids switching).
@@ -707,7 +730,7 @@
               END IF
 *     WRITE (57,444)  BODY(I1),(X(K,I1),K=1,3),(XDOT(K,I1),K=1,3)
 *     WRITE (57,444)  BODY(I2),(X(K,I2),K=1,3),(XDOT(K,I2),K=1,3)
-*     WRITE (57,444)BODY(JCOMP),(X(K,JCOMP),K=1,3),(XDOT(K,JCOMP),K=1,3)
+*     WRITE (57,444)  BODY(JCL),(X(K,JCL),K=1,3),(XDOT(K,JCL),K=1,3)
 * 444 FORMAT (' ',1P,E14.6,1P,3E18.10,3E14.6)
               IF (NMTRY.GE.1000) THEN
 *                 WRITE (6,44)  TTOT, NAME(I1), ECC1, EOUT, PCRIT, PMIN
@@ -720,26 +743,30 @@
               PCRIT = 1.01*PMIN
           END IF
       ELSE
-          PCR = stability(BODY(I1),BODY(I2),BODY(JCOMP),ECC,ECC1,ANGLE)
+          PCR = stability(BODY(I1),BODY(I2),BODY(JCL),ECC,ECC1,ANGLE)
           PCRIT = PCR*SEMI
       END IF
 *
 *       Check whether the main perturber dominates the outer component.
-      IF (JMAX.NE.JCOMP) THEN
-          RIJ2 = (X(1,JMAX) - X(1,JCOMP))**2 +
-     &           (X(2,JMAX) - X(2,JCOMP))**2 +
-     &           (X(3,JMAX) - X(3,JCOMP))**2
-          FMAX = (BODY(JMAX) + BODY(JCOMP))/RIJ2
-          IF (FMAX.GT.(BODY(I) + BODY(JCOMP))/RJMIN2) GO TO 100
+      IF (JMAX.NE.JCL) THEN
+          RIJ2 = (X(1,JMAX) - X(1,JCL))**2 +
+     &           (X(2,JMAX) - X(2,JCL))**2 +
+     &           (X(3,JMAX) - X(3,JCL))**2
+          FMAX = (BODY(JMAX) + BODY(JCL))/RIJ2
+          IF (FMAX.GT.(BODY(I) + BODY(JCL))/RJMIN2) GO TO 100
       END IF
 *
 *       Determine time-scale for stability (absolute or approximate).
       PM1 = PMIN*(1.0 - 2.0*PERT)
-      CALL TSTAB(I,ECC1,SEMI1,PM1,YFAC,ITERM)
+      PCRIT1 = PCRIT
+      CALL TSTAB(I,ECC1,SEMI1,PM1,PCRIT1,YFAC,JCL,ITERM)
       IF (ITERM.GT.0) GO TO 100
 *
 *       Check perturbed stability condition.
       IF (PMIN*(1.0 - PERT).LT.YFAC*PCRIT) GO TO 100
+*       Restrict distance consistent with termination criteria.
+      IF ((RIJ.GT.5.0*RMIN.AND.GI.GT.1.0D-03).OR.
+     &    (RIJ.GT.10.0*RMIN)) GO TO 100
 *
 *       Extend active Roche case up to end of look-up time (bug fix 01/09).
       IF (KSTAR(I).GE.11.AND.MOD(KSTAR(I),2).NE.0) THEN
@@ -751,7 +778,7 @@
 *       Obtain growth time and inclination for significant eccentricity.
       IF (SEMI1.GT.0.0.AND.ECC.GT.0.1) THEN
           ICIRC = -1
-          CALL INDUCE(IPAIR,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
+          CALL INDUCE(IPAIR,JCL,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
 *       Prevent termination for TC < 2000 in HMDOT but allow small EMAX & DE.
           IF (KZ(27).EQ.2.AND.TC.LT.2000.0) THEN
               DE = ABS(EMAX - ECC)
@@ -774,15 +801,18 @@
                   IF (EMAX.GT.0.8.OR.DE.GT.0.2.OR.DT.LT.0.1) GO TO 100
               END IF
           END IF
+      ELSE
+          EMAX = ECC
+          TG = 0.0
       END IF
 *
 *       Check circularization and dissipation time (exclude Roche stages).
       IF (KZ(27).EQ.2.AND.KSTAR(I).LT.10.AND.ECC1.LT.1.0.AND.
      &    NAME(I).GT.0) THEN
           ECC0 = ECC
-          CALL DECIDE(IPAIR,SEMI,ECC,EMAX,EMIN,TC,TG,EDAV,IQ)
+          CALL DECIDE(IPAIR,JCL,SEMI,ECC,EMAX,EMIN,TC,TG,EDAV,IQ)
           IF (IQ.GT.0.OR.IPHASE.LT.0) GO TO 100
-          TK1 = TWOPI*SEMI1*SQRT(SEMI1/(BODY(I) + BODY(JCOMP)))
+          TK1 = TWOPI*SEMI1*SQRT(SEMI1/(BODY(I) + BODY(JCL)))
 *         IF (TMDIS(NMERGE+1) - TIME.LT.TK1) GO TO 100
 *         EK = EK*(1.0 + ECC)/(1.0 + ECC0)
           PCRIT = PCRIT*(1.0 + ECC)/(1.0 + ECC0)
@@ -798,27 +828,27 @@
       END IF
 *
 *       Include rare case of circularizing outer binary.
-      IF (KZ(27).EQ.2.AND.JCOMP.GT.N.AND.KSTAR(JCOMP).EQ.-2) THEN
+      IF (KZ(27).EQ.2.AND.JCL.GT.N.AND.KSTAR(JCL).EQ.-2) THEN
           ECC2 = (1.0 - R(JPAIR)/SEMI2)**2 +
-     &                               TDOT2(JPAIR)**2/(BODY(JCOMP)*SEMI2)
+     &                               TDOT2(JPAIR)**2/(BODY(JCL)*SEMI2)
           ECCJ = SQRT(ECC2)
 *       See whether to reduce the look-up time TMDIS (no skip here).
-          CALL DECIDE(JPAIR,SEMI2,ECCJ,EMAXJ,EMIN,TC,TG,EDAV,IQ)
+          CALL DECIDE(JPAIR,JCL,SEMI2,ECCJ,EMAXJ,EMIN,TC,TG,EDAV,IQ)
           IF (IPHASE.LT.0) GO TO 100
       END IF
 *
 *       Check Zare exchange stability criterion and create diagnostics.
       IF (SEMI1.GT.0.0) THEN
-          CALL ZARE(I1,I2,SP)
-          Q = BODY(JCOMP)/BODY(I)
+          CALL ZARE(I1,I2,JCL,SP)
+          Q = BODY(JCL)/BODY(I)
 *       Note inclination is determined by routine INCLIN for ECC < 0.1.
           IF (SP.LT.1.0.AND.ANGLE.LT.0.17) THEN
               IZARE = IZARE + 1
               IF (IZARE.LT.200) THEN
               WRITE (7,48)  TTOT, Q, ECC, ECC1, SEMI, PMIN, PCRIT,
      &                      YFAC, SP
-              WRITE (7,47) I,JCOMP,N,I1,I2,RIJ,SEMI1
-   47         FORMAT (' I JCOMP N I1 I2 RIJ A1   ',5I6,1P,2E10.2)
+              WRITE (7,47) I,JCL,N,I1,I2,RIJ,SEMI1
+   47         FORMAT (' I JCL N I1 I2 RIJ A1   ',5I6,1P,2E10.2)
               CALL FLUSH(7)
               WRITE (6,48)  TTOT, Q, ECC, ECC1, SEMI, PMIN, PCRIT,
      &                      YFAC, SP
@@ -838,27 +868,27 @@
 *       Specify the final critical pericentre using the fudge factor.
       PCRIT = YFAC*PCRIT
 *
-      IF (NAME(I).GT.N.AND.NAME(JCOMP).GT.N.AND.ECC1.GT.1.0) GO TO 100
-*       Skip if #JCOMP is a chain c.m. but allow bound double hierarchy.
-      IF (NAME(JCOMP).EQ.0) GO TO 100
-      IF (ECC1.GT.1.0.AND.MIN(NAME(I),NAME(JCOMP)).LT.0) GO TO 100
+      IF (NAME(I).GT.N.AND.NAME(JCL).GT.N.AND.ECC1.GT.1.0) GO TO 100
+*       Skip if #JCL is a chain c.m. but allow bound double hierarchy.
+      IF (NAME(JCL).EQ.0) GO TO 100
+      IF (ECC1.GT.1.0.AND.MIN(NAME(I),NAME(JCL)).LT.0) GO TO 100
       DO 55 ISUB = 1,NSUB
-          IF (NAME(JCOMP).EQ.NAMES(1,ISUB)) GO TO 100
+          IF (NAME(JCL).EQ.NAMES(1,ISUB)) GO TO 100
    55 CONTINUE
 *       Do not allow the formation of a SEPTUPLET.
-*     IF ((NAME(I).LT.-2*NZERO.AND.JCOMP.GT.N).OR.
-*    &     NAME(JCOMP).LT.-2*NZERO) GO TO 100
+*     IF ((NAME(I).LT.-2*NZERO.AND.JCL.GT.N).OR.
+*    &     NAME(JCL).LT.-2*NZERO) GO TO 100
 *
 *       Include diagnostics for double hierarchy or optional standard case.
-      IF (NAME(I).LT.0.OR.NAME(JCOMP).LT.0) THEN
+      IF (NAME(I).LT.0.OR.NAME(JCL).LT.0) THEN
           IF (KZ(15).GT.1) THEN
               WHICH1 = ' MERGE2 '
               WRITE (6,20)  WHICH1, IPAIR, TTOT, H(IPAIR), R(IPAIR),
-     &                      BODY(I), BODY(JCOMP), PERT4, RIJ, PMIN,
+     &                      BODY(I), BODY(JCL), PERT4, RIJ, PMIN,
      &                      EB1/EB, LIST(1,I1)
           END IF
 *       Note rare case of two hierarchies merging and identify ghost names.
-          IF (NAME(I).LT.0.AND.NAME(JCOMP).LT.0) THEN
+          IF (NAME(I).LT.0.AND.NAME(JCL).LT.0) THEN
               CALL FINDJ(I1,JI,IM)
               J1 = 2*JPAIR - 1
               CALL FINDJ(J1,JJ,JM)
@@ -870,15 +900,15 @@
           END IF
       ELSE IF (KZ(15).GT.1) THEN
           WHICH1 = ' MERGER '
-          IF (JCOMP.GT.N) WHICH1 = ' QUAD   '
+          IF (JCL.GT.N) WHICH1 = ' QUAD   '
           WRITE (6,20)  WHICH1, IPAIR, TTOT, H(IPAIR), R(IPAIR),
-     &                  BODY(I), BODY(JCOMP), PERT4, RIJ, PMIN,
+     &                  BODY(I), BODY(JCL), PERT4, RIJ, PMIN,
      &                  EB1/EB, LIST(1,I1)
       END IF
 *
 *       Check for diagnostic output of quadruples.
-      IF (SEMI1.GT.0.0.AND.JCOMP.GT.N.AND.KZ(37).GT.0) THEN
-          ZMB = BODY(I) + BODY(JCOMP)
+      IF (SEMI1.GT.0.0.AND.JCL.GT.N.AND.KZ(15).GE.3) THEN
+          ZMB = BODY(I) + BODY(JCL)
           TK = DAYS*SEMI1*SQRT(SEMI1/ZMB)
           WRITE (89,65)  TTOT, NAME(2*IPAIR-1), NAME(2*JPAIR-1),
      &                   LISTQ(1), SQRT(RI2), ECC1, EB, EB2, EB1,
@@ -890,7 +920,7 @@
 *       Generate a diagnostic file of stable hierarchies (suppressed).
       IF (ECC1.LT.-1.0) THEN
           RI = SQRT(RI2)/RC
-          WRITE (80,70)  TPHYS, RI, NAME(JCOMP), QL, Q1, ECC, ECC1,
+          WRITE (80,70)  TPHYS, RI, NAME(JCL), QL, Q1, ECC, ECC1,
      &                   SEMI, SEMI1, PCRIT/PMIN, 360.0*ANGLE/TWOPI,EMAX
    70     FORMAT (F8.1,F5.1,I6,2F6.2,2F6.3,1P,2E10.2,0P,F5.2,F6.1,F6.3)
           CALL FLUSH(80)
@@ -899,6 +929,7 @@
 *       Copy pair index and set indicator for calling MERGE from MAIN.
       KSPAIR = IPAIR
       IPHASE = 6
+      JCOMP = JCL
 *
 *       Save KS indices and delay merger until end of block step.
       CALL DELAY(KS2,KS2)

@@ -222,9 +222,10 @@ void GPUNB_regf(
 			v4sf r2 = dx*dx + dy*dy + dz*dz;
 			v4sf rv = dx*dvx + dy*dvy + dz*dvz;
 			v4sf r2p = dxp*dxp + dyp*dyp + dzp*dzp;
-			// v4sf mask = (v4sf)__builtin_ia32_cmpltps(r2, h2i);
+                        v4sf mh2i = mj * h2i;
 			v4sf mask = (v4sf)__builtin_ia32_cmpltps(
-					__builtin_ia32_minps(r2,r2p), h2i);
+					__builtin_ia32_minps(r2,r2p), mh2i);
+			// v4sf mask = (v4sf)__builtin_ia32_cmpltps(r2, h2i);
 			int bits = __builtin_ia32_movmskps(mask);
 			// mj = __builtin_ia32_andnps(mask, mj);
 			if(bits){

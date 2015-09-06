@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
+#include <cmath>
 #include <unistd.h>
 #include <sched.h>
 #include <omp.h>
@@ -317,6 +318,7 @@ static void gpuirr_open(
 
 	fprintf(stderr, "**************************** \n"); 
 	fprintf(stderr, "Opening GPUIRR lib. SSE ver. \n"); 
+	fprintf(stderr, "  (debug ver. at 2013/11/15) \n"); 
 	fprintf(stderr, " nmax = %d, lmax = %d\n", nmax, lmax);
 	fprintf(stderr, "**************************** \n"); 
 
@@ -432,6 +434,19 @@ static void gpuirr_set_list(
 		dst[k] = nmax;
 	}
 #endif
+}
+
+static void gpuirr_get_list(
+		const int addr,
+		_out_ int &nnb,
+		_out_ int nblist[])
+{
+	nnb = list[addr].nnb;
+	assert(nnb <= NBlist::NB_MAX);
+	const int n = nnb;
+	for(int i=0; i<n; i++){
+		nblist[i] = list[addr].nb[i] + 1;
+	}
 }
 
 static void gpuirr_pred_all(
@@ -907,6 +922,15 @@ static void gpuirr_firr_vec(
 	::time_grav += t1-t0;
 	::num_fcall++;
 	::num_steps += ni;
+
+#if 0
+	for(int i=0; i<ni; i++){
+		if(fabs(accout[i][0]) > 1.0e6){
+			fprintf(stdout, "big force on %d, (%e, %e, %e)\n",
+					addr[i], accout[i][0], accout[i][1], accout[i][2]);
+		}
+	}
+#endif
 }
 
 extern "C"{
@@ -932,6 +956,12 @@ extern "C"{
 		int *nblist)
 	{
 		gpuirr_set_list((*addr)-1, *nblist, nblist+1);
+	}
+	void gpuirr_get_list_(
+		int *addr,
+		int *nblist)
+	{
+		gpuirr_get_list((*addr)-1, *nblist, nblist+1);
 	}
 	void gpuirr_pred_all_(
 			int    *js,
@@ -965,6 +995,52 @@ extern "C"{
 			double jrk [][3])
 	{
 		gpuirr_firr_vec(*ni, addr, acc, jrk);
+	}
+	void gpuirr_debug_pair_(
+			const int *_i,
+			const int *_j)
+	{
+		const int i = *_i - 1;
+		const int j = *_j - 1;
+		const Predictor *pred = ::pred;
+		v4sf dr = (pred[j].posH - pred[i].posH)
+		        + (pred[j].posL - pred[i].posL);
+		union{
+			v4sf  v;
+			float f[4];
+		} m128;
+		m128.v = dr;
+		fprintf(stdout, "x[%d] - x[%d] = (%e, %e, %e)\n",
+				i+1, j+1, m128.f[0], m128.f[1], m128.f[2]);
+		fflush(stdout);
+	}
+	void gpuirr_debug_shoot_j_(
+			const int *_i,
+			int       *jout,
+			double    *rmin)
+	{
+		const int i = *_i - 1;
+		const Predictor *pred = ::pred;
+		const int nnb = list[i].nnb;
+		int jmin = -1;
+		float r2min = HUGE;
+		for(int k=0; k<nnb; k++){
+			const int j = list[i].nb[k];
+			v4sf dr = (pred[j].posH - pred[i].posH)
+					+ (pred[j].posL - pred[i].posL);
+			union{
+				v4sf  v;
+				float f[4];
+			} m128;
+			m128.v = dr*dr;
+			const float r2 = m128.f[0] + m128.f[1] + m128.f[2];
+			if(r2 < r2min){
+				r2min = r2;
+				jmin = j;
+			}
+		}
+		*jout = jmin + 1;
+		*rmin = sqrt((double)r2min);
 	}
 #endif
 }

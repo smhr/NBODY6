@@ -114,7 +114,7 @@
      &                  YC, TG, TC, EDAV, ZID
    15     FORMAT (' ECCMOD    NM NP T E EX E1 QP/R* PC/A TG TC EDA IN ',
      &                        I6,I4,F11.4,3F8.4,2F7.1,1P,3E9.1,0P,F9.3)
-          CALL FLUSH(3)
+          CALL FLUSH(6)
       END IF
 *
       NEMOD = NEMOD + 1
@@ -126,7 +126,7 @@
           WRITE (6,40)  ITIME, EMAX, ECC, SEMI*(1.0 - ECC)/RM, ZID, TC
    40     FORMAT (' ECCMOD TERM    IT EX E QP/R IN TC ',
      &                             I5,2F9.5,F6.2,F8.2,F8.1)
-          CALL FLUSH(3)
+          CALL FLUSH(6)
           ITERM = 1
           ITIME = 1
       END IF

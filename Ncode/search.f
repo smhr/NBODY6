@@ -3,27 +3,29 @@
 *
 *       Close encounter search.
 *       -----------------------
-*
+
       INCLUDE 'common6.h'
       COMMON/CLUMP/   BODYS(NCMAX,5),T0S(5),TS(5),STEPS(5),RMAXS(5),
      &                NAMES(NCMAX,5),ISYS(5)
 *
 *
-*       Increase counter for regularization attempts.
+*       Increase counter for regularization attempts and set critical step.
       NKSTRY = NKSTRY + 1
+      RJMIN2 = 1.0
+      DTS = MAX(SMIN,4.0*STEP(I))
 *
       FMAX = 0.0
       NCLOSE = 0
-*       Find dominant neighbour by selecting all STEP(J) < 2*DTMIN.
+*       Find dominant neighbours by selecting all STEP(J) <= 4*STEP(I).
       L = LIST(1,I) + 2
     2 L = L - 1
       IF (L.LT.2) GO TO 10
-*
-*       First see whether any c.m. with small step is within 2*RMIN.
       IF (LIST(L,I).LE.N) GO TO 4
 *
+*       Check first whether any c.m. with small step is within range.
       J = LIST(L,I)
-      IF (STEP(J).GT.SMIN) GO TO 2
+*       Include mass condition (STEP may be large).
+      IF (STEP(J).GT.DTS.AND.BODY(J).LT.10.0*BODY(I)) GO TO 2
       A1 = X(1,J) - X(1,I)
       A2 = X(2,J) - X(2,I)
       A3 = X(3,J) - X(3,I)
@@ -32,7 +34,7 @@
 *
       FIJ = BODY(J)/RIJ2
       IF (FMAX.LT.FIJ) FMAX = FIJ
-*       Abandon further search if c.m. force exceeds half the total force.
+*       Abandon further search if c.m. force exceeds half total force.
       IF (FMAX**2.LT.F(1,I)**2 + F(2,I)**2 + F(3,I)**2) THEN
           NCLOSE = NCLOSE + 1
           JLIST(NCLOSE) = J
@@ -46,15 +48,15 @@
 *
       DO 6 K = L,2,-1
           J = LIST(K,I)
-          IF (STEP(J).GT.SMIN) GO TO 6
+          IF (STEP(J).GT.DTS) GO TO 6
           A1 = X(1,J) - X(1,I)
           A2 = X(2,J) - X(2,I)
           A3 = X(3,J) - X(3,I)
           RIJ2 = A1*A1 + A2*A2 + A3*A3
-          IF (RIJ2.LT.RMIN22) THEN
+          IF (RIJ2.LT.8.0*RMIN22) THEN
               NCLOSE = NCLOSE + 1
               JLIST(NCLOSE) = J
-*       Remember index of every single body with small step inside 2*RMIN.
+*       Record index of every single body with small step inside 2*RMIN.
               FIJ = (BODY(I) + BODY(J))/RIJ2
               IF (FIJ.GT.FMAX) THEN
                   FMAX = FIJ
@@ -67,8 +69,8 @@
 *
 *       See whether dominant component is a single particle inside RMIN.
       IF (JCOMP.LT.IFIRST.OR.JCOMP.GT.N) GO TO 10
-*       Accept one single candidate inside 2*RMIN (which makes PERT = 0).
-      IF (RJMIN2.GT.RMIN2.AND.NCLOSE.GT.1) GO TO 10
+*       Accept one single candidate inside RMIN (which makes PERT = 0).
+      IF (RJMIN2.GT.RMIN2) GO TO 10
 *
       RDOT = (X(1,I) - X(1,JCOMP))*(XDOT(1,I) - XDOT(1,JCOMP)) +
      &       (X(2,I) - X(2,JCOMP))*(XDOT(2,I) - XDOT(2,JCOMP)) +
@@ -106,9 +108,9 @@
 *       Evaluate vectorial perturbation due to the close bodies.
       CALL FPERT(I,JCOMP,NCLOSE,PERT)
 *
-*       Accept #I & JCOMP if the relative motion is dominant (GI < 0.25).
+*       Accept #I & JCOMP if the relative motion is dominant (GI < 0.10).
       GI = PERT*RJMIN2/BCM
-      IF (GI.GT.0.25) THEN
+      IF (GI.GT.0.10) THEN
 *         IF (KZ(4).GT.0.AND.TIME-TLASTT.GT.4.44*TCR/FLOAT(N))
 *    &                                             CALL EVOLVE(JCOMP,0)
           GO TO 10

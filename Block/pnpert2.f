@@ -14,16 +14,17 @@
       SAVE
       REAL*8  ACC(3),DER(3),VDOT(3),X(3),V(3)
       DATA ED0,ED20 /2*0.0D0/
-      DATA IIIC /0/
+      DATA IIC /0/
 *
 *
 *       Save inverse powers of CLIGHT.
-      IF (IC.EQ.0) THEN
+      IF (IIC.EQ.0) THEN
           CL2 = 1.0/CLIGHT**2
           CL3 = 1.0/CLIGHT**3
           ESAVE(1) = 0.0
           ESAVE(2) = 0.0
           ESAVE(3) = 0.0
+          IIC = 1
       END IF
 *
 *       Set total mass and reduced mass parameter.
@@ -38,13 +39,13 @@
       V2 = V(1)**2 + V(2)**2 + V(3)**2
       RD = (X(1)*V(1) + X(2)*V(2) + X(3)*V(3))/R
 *
-      A1 = 2*(2+ETA)*MR - (1+3*ETA)*V2 + 1.5*ETA*RD**2
-      B1 = 2*(2-ETA)*RD
+*     A1 = 2*(2+ETA)*MR - (1+3*ETA)*V2 + 1.5*ETA*RD**2
+*     B1 = 2*(2-ETA)*RD
 *
-      A1 = 0.0
+      A1 = 0.0   ! including first order PN leads to large error (10/14).
       B1 = 0.0
-          HT = 0.5*V2 - MR
-          SEMI = -0.5*M/HT
+      HT = 0.5*V2 - MR
+      SEMI = -0.5*M/HT
 *       Define unscaled PN2.5 (positive sign convention).
       A25 = 8.0/5.0*ETA*MR*RD*(17.0/3.0*MR + 3.0*V2)
       A = (A1 + A25*CL3)*CL2
@@ -52,8 +53,6 @@
       B25 = -8.0/5.0*ETA*MR*(3.0*MR + V2)
       B = (B1 + B25*CL3)*CL2
 *
-*     WRITE (6,77)  R, A, B, A1, A25
-*  77 FORMAT (' WATCH!    R A B A1 A25  ',1P,6E10.2)
 *       Set the standard PN2.5 perturbing acceleration for VDOT.
       DO 5 K = 1,3
           ACC(K) = M/R2*(A*X(K)/R + B*V(K))
@@ -72,8 +71,8 @@
 *       Form d2R/dt**2 from dR/dt & d(R*V)/dt and absorb 1/R in ADOT.
       RD2 = V2 + RVD - RD**2
 *
-      AD1 = -2*(2+ETA)*MR*RD/R - 2*(1+3*ETA)*VVDOT + 3*ETA*RD*RD2/R
-      BD1 = 2*(2-ETA)*RD2/R
+*     AD1 = -2*(2+ETA)*MR*RD/R - 2*(1+3*ETA)*VVDOT + 3*ETA*RD*RD2/R
+*     BD1 = 2*(2-ETA)*RD2/R
       AD1 = 0.0
       BD1 = 0.0
 *
@@ -132,30 +131,13 @@
       ESAVE(2) = ED2
       IF (IC.EQ.0) DE = 0.0
       ESAVE(3) = ESAVE(3) + DE
-      IF (MOD(IC,10000).EQ.-1) THEN
+      IF (MOD(IC,1000).EQ.0) THEN
           HT = 0.5*V2 - MR
           SEMI = -0.5*M/HT
           WRITE (6,50)  IC, R, ESAVE(3), SEMI
-   50     FORMAT (' PN ENERGY    IC R EGR A ',I9,1P,2E10.2,E14.6)
+   50     FORMAT (' PNPERT2 ENERGY    IC R EGR A ',I9,1P,2E10.2,E14.6)
       END IF
-      AA = 0.0
-      DD = 0.0
-      DO 52 K = 1,3
-      AA = AA + ACC(K)**2
-      DD = DD + DER(K)**2
-   52 CONTINUE
 *
-      IF (IC.LT.3) THEN
-      WRITE (6,76)  IC, R, SEMI, ESAVE(3)
-   76 FORMAT (' CHECK    IC R A ESAVE  ',I9,1P,2E10.2,E12.4)
-      END IF
-*     IF (IC.GE.100) STOP
-*     WRITE (14,55) R, AA, DD, ESAVE(3)
-*  55 FORMAT (' R ACC DER DEGR  ',1P,8E10.2)
-      IF (IC.LT.-100) THEN
-      WRITE (6,60)  IC, A, B, ACC
-   60 FORMAT (' IC A B ACC  ',I5,1P,6E10.2)
-      END IF
       RETURN
 *
       END

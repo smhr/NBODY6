@@ -188,8 +188,7 @@
               CALL GIANT(IPAIR,IK,WG,QG,WSCALE,QSCALE,XN,QL)
               W(K) = WG(1)
               Q(K) = QG(1)
-*             rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
-              rg2(k) = K2*(1.0 - CM(K,IC)/BODY(IK))
+              rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
               QD = QL
           ELSE
               QL = 1.0E+04
@@ -202,11 +201,11 @@
               Q(K) = QQ(IP)
               IF (KSTAR(IK).LE.2.OR.KSTAR(IK).EQ.7) THEN
                   rg2(k) = 0.1
-	      ELSE IF (KSTAR(IK).EQ.4) THEN
+              ELSE IF (KSTAR(IK).EQ.4) THEN
                   CM(K,IC) = MIN(0.89D0*BODY(IK),CM(K,IC))
                   rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
               ELSE
-	          rg2(k)= 0.21
+                  rg2(k)= 0.21
               END IF
           END IF
           TL = TWOPI*RADIUS(IK)*SQRT(RADIUS(IK)/BODY(IK)/W(K))
@@ -221,10 +220,10 @@
           RP1 = RP(IC)/RADIUS(I1)
           rad = radius(i1)
       ELSE
-	  M21 = BODY(I1)/BODY(I2)
+          M21 = BODY(I1)/BODY(I2)
           R21 = RADIUS(I1)/RADIUS(I2)
-	  RP1 = RP(IC)/RADIUS(I2)
-	  rad = radius(i2)
+          RP1 = RP(IC)/RADIUS(I2)
+          rad = radius(i2)
       END IF
 *
 *       Define initial angular momentum from the scaled semi-major axis.
@@ -257,7 +256,7 @@
           M0 = BODY0(J2)*SMU
           MC2 = CM(2,IC)*SMU
           IF (MC2.LE.0.0D0.OR.MC2.GT.M0) THEN
-              MC2 = 0.3 + 0.1*(KSTAR(J1) - 3)
+              MC2 = 0.3 + 0.1*(KSTAR(J2) - 3)
               IF(KW.EQ.9) MC2 = MIN(0.3D0,0.95*M0)
               CM(2,IC) = MC2/ZMBAR
           END IF
@@ -307,7 +306,7 @@
      &                                 0P,F6.1)
       CALL FLUSH(92)
       END IF
-*	Evaluate damping coefficients (Mardling & SJA, M.N. 321, 398, 2001).
+*       Evaluate damping coefficients (Mardling & SJA, M.N. 321, 398, 2001).
       cf = 54.0*twopi/5.0
       C3 = (cf/9.0)*(AT0(1)*(Q(1)/W(1))**2*M21**2)/rg2(1)/semi0**6
       C4 = (cf/9.0)*(AT0(2)*(Q(2)/W(2))**2/M21**2)*R21**6/rg2(2)/

@@ -61,7 +61,8 @@
       ICOMP = JLIST(1)
 *       Ensure heaviest body is selected in case of ARchain.
       IF (ISYS(ISUB).EQ.4) THEN
-          ICOMP = JLIST(LX)  
+*         ICOMP = JLIST(LX)  
+          ICOMP = JLIST(1)  
       END IF
 *       Define zero name for identification (only chain or ARchain c.m.).
       IF (ISYS(ISUB).GE.3) NAME(ICOMP) = 0

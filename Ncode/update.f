@@ -19,7 +19,7 @@
 *       Rename lists containing single regularized components.
       DO 50 J = 1,NTOT
 *       Skip renaming if first neighbour exceeds regularized components.
-          IF (LIST(2,J).GT.ILAST) GO TO 50
+          IF (LIST(2,J).GT.ILAST.OR.BODY(J).EQ.0.0D0) GO TO 50
           NNB = LIST(1,J)
           IF (NNB.EQ.0) GO TO 50
           L = 2
@@ -63,6 +63,7 @@
 *
 *       Replace c.m. by components and reduce subsequent members by one.
    60 DO 80 J = 1,NTOT
+          IF (BODY(J).EQ.0.0D0) GO TO 80
           NNB = LIST(1,J)
           L = NNB + 1
           MOVE = 0
@@ -88,7 +89,7 @@
 *       Expand the list to include both components since c.m. was deleted.
           KCASE = 2
 *       Only move neighbours down by one if the list has too many members.
-          IF (NNB.GT.LMAX-3) KCASE = 1
+          IF (NNB.GT.LMAX-5) KCASE = 1
           IF (NNB.EQ.0) GO TO 76
 *       In this special case L = 2 already.
           L = NNB + 1
@@ -107,7 +108,7 @@
 *
 *       Rename deleted c.m. appropriately and increase membership by 2 or 1.
    76     LIST(L,J) = ICOMP
-*       Do not over-write the list if NNB > LMAX-1 after removal of c.m.
+*       Do not over-write the list if NNB > LMAX-3 after removal of c.m.
           IF (KCASE.EQ.2) LIST(L+1,J) = JCOMP
           LIST(1,J) = NNB + KCASE
           IF (KCASE.EQ.1.AND.IW.LT.10) THEN

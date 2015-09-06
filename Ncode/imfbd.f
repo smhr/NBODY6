@@ -42,7 +42,7 @@ c      DATA      ALPHA0, ALPHA1, ALPHA2, ALPHA3, ALPHA4/
 c     &          0.3D0,  1.3D0,  2.2D0,   2.7D0,  2.7D0/
 *
 *
-C       Standard of average IMF:
+C       Standard of average IMF: (Kroupa et al. 2001, MNRAS 262, 545)
 *
       DATA    ML,     MH,    M0,      M1,      M2,    MU/
      &      0.01D0, 0.08D0, 0.5D0,  1.0D0,   8.0D0, 100.0D0/

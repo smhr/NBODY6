@@ -23,6 +23,8 @@
 *       Identify each member sequentially from NAMEC (note NAME(ICH) = 0).
               IF (NAME(J).EQ.NAMEC(L).OR.NAME(J).EQ.0) THEN
                   JLIST(L) = J
+                  IF (NAME(J).EQ.0) GO TO 2
+*       Do not write twice in the same location (bug 6/2014).
               END IF
     1     CONTINUE
     2 CONTINUE

@@ -111,7 +111,8 @@
 *       Sort masses from first group in increasing order.
       CALL SORT1(NP,ZMI,ILIST)
       ZMX1 = ZMI(1)
-      ZMX0 = 0.5*(ZMX1 + BODY1)
+*       Note heaviest current binary mass may exceed BODY1.
+      ZMX0 = 0.5*(ZMX1 + ZMI(NP))
       ITRY = 0
    32 NP0 = 0
       LX0 = 0
@@ -127,7 +128,7 @@
       NPCRIT = SQRT(FLOAT(N - NPAIRS))
       NPCRIT = MIN(NPCRIT,10)
       IF (NBLACK.GT.2) NPCRIT = NBLACK
-      IF (NP0.LT.NPCRIT.AND.ITRY.LT.20) THEN
+      IF (NP0.LT.NPCRIT.AND.ITRY.LT.10) THEN
           ZMX0 = 0.9*ZMX0
           GO TO 32
       END IF
@@ -138,6 +139,7 @@
 *
 *       Form sum of inverse separations to evaluate mass segregation.
       POT0 = 0.0
+      LX0 = MAX(LX0,1)
       DO 44 L = LX0,NP-1
           I = ILIST(L)
           DO 42 LL = L+1,NP
@@ -308,8 +310,9 @@
      &                           F7.1,I5,I6,I7,1X,5F7.3)
 *
       IF (N14.GT.1.OR.N13.GT.1) THEN
+          N140 = MAX(N14,0)
           N14 = MAX(N14,1)
-          WRITE (6,80)  TIME+TOFF, TPHYS, N14, ZMBH/FLOAT(N14), RBH,
+          WRITE (6,80)  TIME+TOFF, TPHYS, N140, ZMBH/FLOAT(N14), RBH,
      &                  SEMI, N13, R13, RX
    80     FORMAT (/,' BH/NS SUBSYSTEM:    T TPHYS NBH <MBH> RBH A ',
      &                                    'NS R13 RX ',

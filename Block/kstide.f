@@ -11,8 +11,6 @@
       INTEGER  IS(2)
       SAVE  TTIDE,IONE
       DATA  ECCM,ECCM2,TTIDE,IONE  /0.002,0.00000399,0.0D0,0/
-      SAVE SUM
-      DATA SUM /0.0D0/
 *
 *
 *       Skip significant perturbation near pericentre.
@@ -351,8 +349,13 @@
           CALL KSPERI(IPAIR)
           CALL XVPRED(I,0)
           JPHASE = -1
-          IF (ISTAT(KCASE).EQ.0) ISTAT(KCASE) = JPHASE
-*      Delay coalescence procedure until SUBINT.
+*       Skip ISTAT test if called by BRAKE and return KCASE < 0..
+          IF (KCASE.GT.0) THEN
+              IF (ISTAT(KCASE).EQ.0) ISTAT(KCASE) = JPHASE
+          ELSE
+              KCASE = -1
+          END IF
+*      Delay coalescence procedure until SUBINT (moved to BRAKE).
 *         KSPAIR = IPAIR
 *         IQCOLL = 1
 *         CALL CMBODY(R(IPAIR),2)

@@ -17,6 +17,7 @@
 *
 *
 *       Decide between new run, termination or collision (= 0, > 0, < 0).
+      ITERM = 0
       IF (ISUB.NE.0) THEN
           ITERM = ISUB
           ISUB = IABS(ISUB)

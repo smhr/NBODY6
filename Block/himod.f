@@ -54,8 +54,8 @@
 *       Initialize integration variables.
 
    10 do i=1,3
-	 u(i)=evec(i)
-	 u(i+3)=hvec(i)
+         u(i)=evec(i)
+         u(i+3)=hvec(i)
       enddo
 
 *       Perform integration.
@@ -65,13 +65,13 @@
       if(e0.ge.1.0) goto 20
       eh=0.0
       do i=1,3
-	 evec(i)=u(i)
-	 hvec(i)=u(i+3)
+         evec(i)=u(i)
+         hvec(i)=u(i+3)
          eh=eh+evec(i)*hvec(i)
       enddo
 
-	e0=sqrt(dot(evec,evec))
-	hh=sqrt(dot(hvec,hvec))
+        e0=sqrt(dot(evec,evec))
+        hh=sqrt(dot(hvec,hvec))
 
 *       Apply symmetric re-orthogonalization (small eh; Seppo Mikkola 3/98).
 
@@ -105,18 +105,18 @@
       RETURN
       END
 
-	
-	subroutine cross(u,v,w)
+        
+        subroutine cross(u,v,w)
 
 *       Vectorial cross product.
 *       ------------------------
-	real*8 u(3),v(3),w(3)
+        real*8 u(3),v(3),w(3)
 
-	w(1) = u(2)*v(3) - u(3)*v(2)
-	w(2) = u(3)*v(1) - u(1)*v(3)
-	w(3) = u(1)*v(2) - u(2)*v(1)
+        w(1) = u(2)*v(3) - u(3)*v(2)
+        w(2) = u(3)*v(1) - u(1)*v(3)
+        w(3) = u(1)*v(2) - u(2)*v(1)
 
-	end
+        end
 
 
         real*8 function dot(u,v)
@@ -125,37 +125,37 @@
 *       ------------------
         real*8 u(3),v(3)
 
-	dot=u(1)*v(1)+u(2)*v(2)+u(3)*v(3)
+        dot=u(1)*v(1)+u(2)*v(2)+u(3)*v(3)
 
-	end
+        end
 
 
-	subroutine transform2(element,mb,r,v)
+        subroutine transform2(element,mb,r,v)
 *
 *	Calculates vectors r and v given 6 orbital elements.
 *       ----------------------------------------------------
 *
         IMPLICIT REAL*8 (A-H,O-Z)
-	real*8 r(3),v(3),element(6),mb
-	real*8 tempr(3),tempv(3)
-	real*8 inc,B(3,3)
+        real*8 r(3),v(3),element(6),mb
+        real*8 tempr(3),tempv(3)
+        real*8 inc,B(3,3)
 
 
         a=element(1)
-	e=element(2)
-	inc=element(3)
-	w=element(4)
-	Om=element(5)
-	phi=element(6)
+        e=element(2)
+        inc=element(3)
+        w=element(4)
+        Om=element(5)
+        phi=element(6)
 
-	cosp=cos(phi)
-	sinp=sin(phi)
-	cosi=cos(inc)
-	sini=sin(inc)
-	cosw=cos(w)
-	sinw=sin(w)
-	cosOm=cos(Om)
-	sinOm=sin(Om)
+        cosp=cos(phi)
+        sinp=sin(phi)
+        cosi=cos(inc)
+        sini=sin(inc)
+        cosw=cos(w)
+        sinw=sin(w)
+        cosOm=cos(Om)
+        sinOm=sin(Om)
 
         B(1,1) = cosw*cosOm - sinw*cosi*sinOm
         B(1,2) = cosw*sinOm + sinw*cosi*cosOm
@@ -167,88 +167,88 @@
         B(3,2) = -sini*cosOm
         B(3,3) = cosi
 
-	h=sqrt(mb*a*(1-e**2))
-	rr=a*(1-e**2)/(1+e*cosp)
-	rd=e*h*sinp/(a*(1-e**2))
-	phid=h/rr**2
+        h=sqrt(mb*a*(1-e**2))
+        rr=a*(1-e**2)/(1+e*cosp)
+        rd=e*h*sinp/(a*(1-e**2))
+        phid=h/rr**2
 
-	r(1)=rr*cosp
-	r(2)=rr*sinp
-	r(3)=0.0
+        r(1)=rr*cosp
+        r(2)=rr*sinp
+        r(3)=0.0
 
-	v(1)=rd*cosp-rr*phid*sinp
-	v(2)=rd*sinp+rr*phid*cosp
-	v(3)=0.0
+        v(1)=rd*cosp-rr*phid*sinp
+        v(2)=rd*sinp+rr*phid*cosp
+        v(3)=0.0
 
-	do i=1,3
-	   sum1=0.0
-	   sum2=0.0
-	   do j=1,3
-	      sum1=sum1 + B(j,i)*r(j)
-	      sum2=sum2 + B(j,i)*v(j)
-	   enddo
-	   tempr(i)=sum1
-	   tempv(i)=sum2
-	enddo
-	do i=1,3
-	   r(i)=tempr(i)
-	   v(i)=tempv(i)
-	enddo
+        do i=1,3
+           sum1=0.0
+           sum2=0.0
+           do j=1,3
+              sum1=sum1 + B(j,i)*r(j)
+              sum2=sum2 + B(j,i)*v(j)
+           enddo
+           tempr(i)=sum1
+           tempv(i)=sum2
+        enddo
+        do i=1,3
+           r(i)=tempr(i)
+           v(i)=tempv(i)
+        enddo
 
-	end
+        end
 
 
-	subroutine transform4(e,h,mb,element)
+        subroutine transform4(e,h,mb,element)
 *
 *	Calculates 5 orbital elements given vectors evec and h and mass mb.
 *	-------------------------------------------------------------------
 *
         IMPLICIT REAL*8 (A-H,O-Z)
-	real*8 element(6)
-	real*8 h(3),e(3),n(3),hn(3),he(3)
-	real*8 eh(3)
-	real*8 ii(3),jj(3),kk(3),nn,mb
-	data ii/1.d0,0.d0,0.d0/
-	data jj/0.d0,1.d0,0.d0/
-	data kk/0.d0,0.d0,1.d0/
+        real*8 element(6)
+        real*8 h(3),e(3),n(3),hn(3),he(3)
+        real*8 eh(3)
+        real*8 ii(3),jj(3),kk(3),nn,mb
+        data ii/1.d0,0.d0,0.d0/
+        data jj/0.d0,1.d0,0.d0/
+        data kk/0.d0,0.d0,1.d0/
 
 
-	hh=sqrt(dot(h,h))
+        hh=sqrt(dot(h,h))
 
         do i=1,3
            h(i)=h(i)/hh
         enddo
 
-	call cross(kk,h,n)
+        call cross(kk,h,n)
 
-	nn=sqrt(dot(n,n))
-	ecc=sqrt(dot(e,e))
+        nn=sqrt(dot(n,n))
+        ecc=sqrt(dot(e,e))
         a=hh**2/mb/(1-ecc**2)
 
-	do i=1,3
-	   n(i)=n(i)/nn
-	   eh(i)=e(i)/ecc
-	enddo
+        do i=1,3
+           n(i)=n(i)/nn
+           eh(i)=e(i)/ecc
+        enddo
 
-	call cross(h,n,hn)
-	call cross(h,eh,he)
+        call cross(h,n,hn)
+        call cross(h,eh,he)
 
-	cosOm=dot(ii,n)
-	sinOm=dot(jj,n)
-	cosi=dot(kk,h)
-	sini=nn
-	cosw=dot(n,eh)
-	sinw=dot(eh,hn)
+        cosOm=dot(ii,n)
+        sinOm=dot(jj,n)
+        cosi=dot(kk,h)
+        sini=nn
+        cosw=dot(n,eh)
+        sinw=dot(eh,hn)
 
-	element(1)=a
-	element(2)=ecc
-	element(3)=atan2(sini,cosi)
-	element(4)=atan2(sinw,cosw)
-	element(5)=atan2(sinOm,cosOm)
-	element(6)=0.0
+        element(1)=a
+        element(2)=ecc
+        element(3)=atan2(sini,cosi)
+        element(4)=atan2(sinw,cosw)
+        element(5)=atan2(sinOm,cosOm)
+        element(6)=0.0
 *       Pericentre phase (can be specified).
 
 *     ZI = 360.0*ELEMENT(3)/(8.0*ATAN(1.0D0))
 *     WRITE (6,5)  ECC,ELEMENT(3),ELEMENT(4),ELEMENT(5),ZI
 *   5 FORMAT (' TRANSFORM    e i w Om IN ',F8.4,F9.3,3F9.3)
-	end
+        end

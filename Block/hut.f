@@ -1,11 +1,11 @@
-	subroutine hut(es0,spin10,spin20,ecc,spin1,spin2,nsteps,dtau)
+        subroutine hut(es0,spin10,spin20,ecc,spin1,spin2,nsteps,dtau)
 
         implicit real*8 (A-H,O-Z)
-	real*8 u(3),udot(3)
+        real*8 u(3),udot(3)
 
-	u(1)=es0
-	u(2)=spin10
-	u(3)=spin20
+        u(1)=es0
+        u(2)=spin10
+        u(3)=spin20
 
         call deriv2(u,udot)
 
@@ -39,11 +39,11 @@
             CALL FLUSH(96)
         END IF
 
-	do i=1,nsteps
+        do i=1,nsteps
 *       Save spins in case eccentricity goes negative.
            usave2 = u(2)
            usave3 = u(3)
-	   call rk4b(dtau,u)
+           call rk4b(dtau,u)
 *       Note there are 4 calls to deriv2 when u(1) may go negative.
            IF (u(1).lt.0.002.or.u(1).gt.0.99999) then
 *       Enforce circularization by adopting e=0.00199 and copying spins.
@@ -54,17 +54,17 @@
               u(3) = usave3
               GO TO 5
             END IF
-	enddo
+        enddo
 
     5   ecc=u(1)
-	spin1=u(2)
-	spin2=u(3)
+        spin1=u(2)
+        spin2=u(3)
 
-	end
+        end
 
       subroutine rk4b(dt,u)
 
-*	Runge-Kutta integrator.
+*       Runge-Kutta integrator.
 *       -----------------------
 
 *       Author:  Rosemary Mardling (3/98).
@@ -103,12 +103,12 @@
       enddo
 
       end
-	
-	subroutine deriv2(u,udot)
+        
+        subroutine deriv2(u,udot)
 
         implicit real*8 (A-H,M,O-Z)
-	real*8 u(3),udot(3)
-	common/spins/angmom0,rg2(2),m21,r21,semi0,C1,C2,C3,C4,C5,semi
+        real*8 u(3),udot(3)
+        common/spins/angmom0,rg2(2),m21,r21,semi0,C1,C2,C3,C4,C5,semi
 *       SAVE IC
 *       DATA IC /0/
 
@@ -150,4 +150,4 @@
 *   1       FORMAT (' HUT DERIV    # e s1 s2 udot ',I10,F8.4,1P,5E9.1)
 *       END IF
 
-	end
+        end

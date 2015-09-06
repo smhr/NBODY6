@@ -6,6 +6,11 @@
       ECCGR = 0.999
       SEMIGR = 2.0D-05
       CVEL = 18000.0
+      CVEL = 10000.0
+      M1 = 7.6
+      M2 = 0.8
+      ECCGR = 0.54
+      SEMIGR = 3.0D-08
       E2 = ECCGR**2
       ADOT =  64.0/5.0*M1*M2*(M1+M2)/(CVEL**5*SEMIGR**3*(1.0-E2)**3.5)
       ADOT = ADOT*(1.0 + 73.0/24.0*E2 + 37.0/96.0*E2**2)

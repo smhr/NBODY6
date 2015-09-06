@@ -1,6 +1,12 @@
 // #include <iostream>
 #include <cstdio>
-#include <cutil.h>
+// #include <cutil.h>
+#ifdef WITH_CUDA5
+#  include <helper_cuda.h>
+#  define CUDA_SAFE_CALL checkCudaErrors
+#else
+#  include <cutil.h>
+#endif
 #include "cuda_pointer.h"
 #define NTHREAD 128
 

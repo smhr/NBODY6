@@ -76,11 +76,11 @@
       IF (I5.EQ.0) I5 = I4
       IF (I6.EQ.0) I6 = I4
 *
-      IF (KZ(30).GT.1) THEN
-          WRITE (6,4)  SQRT(R2(I1,I2)), SQRT(R2(I1,I3)),SQRT(R2(I2,I3)),
-     &                 SQRT(R2(I2,I4)), SQRT(R2(I3,I4))
-    4     FORMAT (' CHTERM:   RIJ (1-2 1-3 2-3 2-4 3-4)  ',1P,5E9.1)
-      END IF
+*     IF (KZ(30).GT.1) THEN
+*         WRITE (6,4)  SQRT(R2(I1,I2)), SQRT(R2(I1,I3)),SQRT(R2(I2,I3)),
+*    &                 SQRT(R2(I2,I4)), SQRT(R2(I3,I4))
+*   4     FORMAT (' CHTERM:   RIJ (1-2 1-3 2-3 2-4 3-4)  ',1P,5E9.1)
+*     END IF
 *
       JLIST(6) = NAMEC(I1)
       JLIST(7) = NAMEC(I2)
@@ -287,10 +287,10 @@
 *       Assign new neighbours for dominant KS and any other members.
       RS0 = RS(ICM)
       CALL NBLIST(ICOMP,RS0)
-      DO 65 L = 3,NCH
+      DO 62 L = 3,NCH
           J = JLIST(L)
           CALL NBLIST(J,RS0)
-   65 CONTINUE
+   62 CONTINUE
 *
 *       Replace ICM in neighbour lists by all subsystem members.
       CALL NBREST(ICM,NCH,NNB1)
@@ -387,6 +387,10 @@
 *
 *       Perform KS regularization of dominant components (ICOMP < JCOMP).
       IF (JCOMP.LE.N) THEN
+*       Save index of dominant bodies for neighbour list check.
+          IC1 = ICOMP
+          IC2 = JCOMP
+*
           CALL KSREG
 *       Produce diagnostics on ejection velocity of escaper > 2*VSTAR.
           IF (SQRT(VX2)*VSTAR.GT.2.0*VSTAR) THEN
@@ -396,11 +400,30 @@
               PB = DAYS*A1*SQRT(ABS(A1)/BODY(NTOT))
               VI2 = XDOT(1,NTOT)**2 + XDOT(2,NTOT)**2 + XDOT(3,NTOT)**2
               VCM = SQRT(VI2)*VSTAR
-              WRITE (6,68)  NAME(J1), NAME(J2), BODY(J1)*SMU,
+              WRITE (6,64)  NAME(J1), NAME(J2), BODY(J1)*SMU,
      &                      BODY(J2)*SMU, VCM, A1, PB
-   68         FORMAT (' CHAIN BINARY    NM M1 M2 VCM A PB ',
+   64         FORMAT (' CHAIN BINARY    NM M1 M2 VCM A PB ',
      &                                  2I7,2F6.1,F7.1,1P,2E10.2)
           END IF
+*
+*       Search LISTC for missing dominant bodies in nearby neighbour lists.
+      NP = LISTC(1)
+      DO 68 L = 2,NP
+          J = LISTC(L)
+          NB1 = LIST(1,J) + 1
+          I0 = 0
+*       Check whether IC1 & IC2 are members.
+          DO 65 LL = 2,NB1
+              IF (LIST(LL,J).EQ.IC1.OR.LIST(LL,J).EQ.IC2) I0 = I0 + 1
+   65     CONTINUE
+*
+*       Add new c.m. at the end after failed search (NBREST not used).
+          IF (I0.EQ.0) THEN
+              LIST(NB1+1,J) = NTOT
+              LIST(1,J) = LIST(1,J) + 1
+          END IF
+   68 CONTINUE
+*
 *       Restore TIME in case modified by routine KSPERI.
           TIME = TIME0
 *       Include optional rectification by standard KS procedure.
@@ -467,6 +490,7 @@
           WRITE (6,75)  TIME+TOFF, I3, I4, NTOT, STEP3, STEP4,STEP(NTOT)
    75     FORMAT (' CHTERM:   T I3 I4 NT DT ',F10.4,3I6,1P,3E9.1)
       END IF
+      CALL FLUSH(6)
 *
 *       Initialize second KS pair if separation is small.
       IF (KS2.GT.0) THEN

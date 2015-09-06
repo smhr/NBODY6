@@ -27,11 +27,12 @@
       COMMON/INCOND/  X4(3,NMX),XDOT4(3,NMX)
 *
 *
-*       Identify the dominant perturber (skip if none or NN >= 6).
+*       Identify the dominant perturber (skip if none or NN >= 5).
       ITRY = 0
       JCLOSE = 0
     1 NNB = LISTC(1)
-      IF (NNB.EQ.0.OR.NN.GE.6) GO TO 10
+      IF (NNB.EQ.0.OR.NN.GE.5) GO TO 10
+*       Note NN = 6 (NN = 4 + binary) is allowed but not for termination.
       PMAX = 0.0
       DO 2 L = 2,NNB+1
           J = LISTC(L)
@@ -53,29 +54,27 @@
 *       Check for rejection (RIJ > 3*MIN(RSUM,RMIN); RDOT > 0 & G < 0.05).
       RIJ = SQRT(RJMIN2)
 *
-*       Include test on fast escaper approaching a perturber having RDOT > 0.
+*       Include test on fast escaper approaching a perturber with RDOT > 0.
       IF (GPERT.GT.0.05.AND.RDOT.GT.0) THEN
 *       Bypass test and repeated diagnostics for large perturbation.
           IF (GPERT.GT.0.5) GO TO 5
           RDX = 0.0
-          L = 0
-*       Evaluate actual distance and relative radial velocity of end member.
-    3     RJX2 = (XCH(L+1) - X(1,JCLOSE))**2 +
-     &           (XCH(L+2) - X(2,JCLOSE))**2 +
-     &           (XCH(L+3) - X(3,JCLOSE))**2
-          RDI = (XCH(L+1) - X(1,JCLOSE))*(VCH(L+1) - XDOT(1,JCLOSE)) +
-     &          (XCH(L+2) - X(2,JCLOSE))*(VCH(L+2) - XDOT(2,JCLOSE)) +  
-     &          (XCH(L+3) - X(3,JCLOSE))*(VCH(L+3) - XDOT(3,JCLOSE))
-*       See whether any chain member is approaching the intruder.
-          IF (RDI.LT.0.0) THEN
-              RJX = SQRT(RJX2)
-              RDX = RDI/RJX
-          END IF
-*       Consider the last chain member similarly.
-          IF (L.EQ.0) THEN
-              L = 3*(NN - 1)
-              GO TO 3
-          END IF
+          RJX = 1.0
+*       Determine the smallest approaching intruder distance to chain member.
+          DO 3 L = 1,NN
+              RJX2 = 0.0
+              RDI = 0.0
+              DO K = 1,3
+                  RJX2 = RJX2 + (XC(K,L) - X(K,JCLOSE))**2
+                  RDI = RDI + (XC(K,L) - X(K,JCLOSE))*
+     &                        (UC(K,L) - XDOT(K,JCLOSE))
+              END DO
+*       See whether the intruder is approaching a chain member.
+              IF (RDI.LT.0.0.AND.RJX2.LT.RJX**2) THEN
+                  RJX = SQRT(RJX2)
+                  RDX = RDI/RJX
+              END IF
+    3     CONTINUE
 *       Bypass RDOT < 0 test for approaching ejection candidate.
           IF (RDX.LT.0.0.AND.RJX.LT.2.0*RSUM/FLOAT(NN-1)) THEN
               WRITE (6,4)  NAME(JCLOSE), GPERT, RIJ, RJX, RDX
@@ -168,7 +167,7 @@
           END IF
 *
 *       Switch off any slow-down before increasing the chain (cf. new step).
-          IF (KSLOW2) THEN
+          IF (KSLOW2.AND.KZ(26).GE.2) THEN
               FAC = 1.0
               DO 7 K = 1,NCH-1
                   FAC = MAX(KSCH(K),FAC)
@@ -208,6 +207,7 @@
           END IF
 *
 *       Absorb the perturber (single particle or binary).
+          IF (JCLOSE.GT.N.AND.NN.GE.5) GO TO 10
           CALL ABSORB(ISUB)
 *
 *       Reduce block-time since new c.m. step may be very small.
@@ -306,13 +306,14 @@
           RJB = 1.0/RINV(JBIN)
 *       Consider removal of outermost particle instead if binary is wide.
           IF (RB.GT.0.25*RJB) THEN
-*       Change pointer to end of chain and redefine IESC.
+*       Change pointer to end of chain and redefine IESC (with JESC = 0).
               IF (ISORT(1).EQ.2) THEN
                   ISORT(1) = 1
               ELSE
                   ISORT(1) = NN - 1
               END IF
               IESC = JESC
+              JESC = 0
               GO TO 30
           END IF
       ELSE

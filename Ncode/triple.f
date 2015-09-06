@@ -245,7 +245,13 @@
       IM = ICOLL
       ICOLL = 0
       IF (QPERI.LT.4.0*MAX(SIZE(IM),SIZE(3))) THEN
-          IF (QPERI.LT.0.75*(SIZE(IM) + SIZE(3))) THEN
+          J1 = 3
+          J2 = IM
+          IF (SIZE(J2).GT.SIZE(J1)) J1 = J2
+          FAC = 0.5*(M(IM) + M(3))/M(J1)
+*       Adopt collision criterion of Kochanek (Ap.J. 385, 604, 1992).
+          RCOLL = 1.7*FAC**0.3333*SIZE(J1)
+          IF (QPERI.LT.RCOLL) THEN
 *
 *       Transform to physical variables.
               CALL TRANS3(2)
@@ -261,7 +267,7 @@
 *
 *       Evaluate the two-body energy for diagnostic purposes.
               CALL EREL3(IM,EBS,SEMI)
-              DMINC = MIN(RCOLL,DMINC)
+              DMINC = MIN(RCOLL,DMINC)  ! note DMINC not in common6.
 *
 *       Form composite body and begin KS regularization of new pair.
               CALL CMBODY(H3,3)
@@ -274,8 +280,8 @@
               DTAU3 = ABS(DTAU0)
               ICALL = 0
 *       Update relative distances (NB! Not quite latest value).
-      R1 = Q(1)**2 + Q(2)**2 + Q(3)**2 + Q(4)**2
-      R2 = Q(5)**2 + Q(6)**2 + Q(7)**2 + Q(8)**2
+              R1 = Q(1)**2 + Q(2)**2 + Q(3)**2 + Q(4)**2
+              R2 = Q(5)**2 + Q(6)**2 + Q(7)**2 + Q(8)**2
               IF (ITERM.LT.0) GO TO 90
 *       Initialize input array and continue integration.
               GO TO 15
@@ -433,7 +439,7 @@
      &                  M(I), RI, ET
    80     FORMAT (/,' TRIPLE BINARY ',2I5,'  MB =',F7.4,'  A =',1P,E8.1,
      &     '  E =',0P,F5.2,'  EB =',F5.2,'  GB =',1P,E8.1,'  RB =',E8.1,
-     &               '  MI =',0P,F7.4,'  RI =',1P,E8.1,'  ET =',0P,F6.3)
+     &                     '  MI =',E8.1,'  RI =',E8.1,'  ET =',0P,F6.3)
       END IF
 *
 *       Postpone termination by one small step unless restart case.

@@ -42,7 +42,7 @@
          else
             dtm = pts2*(tscls(11) - age)
          endif
-         dtm = MIN(dtm,0.005d0)
+*        dtm = MIN(dtm,0.005d0)
          dtr = tn - age
       elseif(kw.eq.7)then
          dtm = pts1*tm

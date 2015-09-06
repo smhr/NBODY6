@@ -21,6 +21,15 @@
    10         CONTINUE
           END IF
 *
+*       Check bulge force.
+      IF (GMB.GT.0.0D0) THEN
+          CALL FBULGE(XI,XIDOT,FM,FMD)
+          DO 15 K = 1,3
+              FREG(K) = FREG(K) + FM(K)
+              FDR(K) = FDR(K) + FMD(K)
+   15     CONTINUE
+      END IF
+*
 *       Include Miyamoto disk for positive disk mass.
           IF (DISK.GT.0.0D0) THEN
               CALL FDISK(XI,XIDOT,FM,FMD)

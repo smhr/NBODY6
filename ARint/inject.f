@@ -12,6 +12,7 @@
      &           XI(NMX3),VI(NMX3),MASS,RINV(NMXm),RSUM,INAME(NMX),NN
       COMMON/CHAINC/  XC(3,NCMAX),UC(3,NCMAX),BODYC(NCMAX),ICH,
      &                LISTC(LMAX)
+      COMMON/CPERT/  RGRAV,GPERT,IPERT,NPERT
       COMMON/CHREG/  TIMEC,TMAX,RMAXC,CM(10),NAMEC(NMX),NSTEP1,KZ27,KZ30
       COMMON/CLUMP/   BODYS(NCMAX,5),T0S(5),TS(5),STEPS(5),RMAXS(5),
      &                NAMES(NCMAX,5),ISYS(5)
@@ -19,37 +20,41 @@
      &                ECOLL1,RCOLL,QPERI,ISTAR(NMX),ICOLL,ISYNC,NDISS1
 *
 *
-*       Determine closest approaching neighbour (JCLOSE for ABSORB).
+*       Determine closest approaching perturber (JCLOSE for ABSORB).
       RX = 1.0
-      DO 10 I = IFIRST,N
-          IF (I.EQ.ICH) GO TO 10
+      JCLOSE = 0
+      NP = LISTC(1)
+      DO 10 L = 2,NP+1
+          J = LISTC(L)
           RIJ2 = 0.0
           DO 5 K = 1,3
-              RIJ2 = RIJ2 + (X(K,I) - X(K,ICH))**2
+              RIJ2 = RIJ2 + (X(K,J) - X(K,ICH))**2
     5     CONTINUE
           IF (RIJ2.LT.RX) THEN
               RD = 0.0
               DO 6 K = 1,3
-                  RD = RD + (X(K,I)-X(K,ICH))*(XDOT(K,I)-XDOT(K,ICH))
+                  RD = RD + (X(K,J)-X(K,ICH))*(XDOT(K,J)-XDOT(K,ICH))
     6         CONTINUE
               IF (RD.LT.0.0) THEN
-                  JCLOSE = I
+                  JCLOSE = J
                   RX = RIJ2
               END IF
           END IF
    10 CONTINUE
 *
-*       Save KS component for termination.
-      JCOMP = JCLOSE
-      WRITE (6,20)  TIME+TOFF, NN, NAME(JCLOSE), SQRT(RX), 1.0/RINV(1)
-   20 FORMAT (/,' CHAIN INJECT    T NN NM RX RBH ',F8.3,I4,I8,1P,2E10.2)
-      CALL FLUSH(6)
+*       Impose realistic distance limit (closest perturber may be receding).
+      IF (JCLOSE.EQ.0.OR.(RX.GT.RMIN22.AND.GPERT.LT.0.2)) GO TO 50
+      IF (RX.GT.4.0*RMIN22) GO TO 50
+      WRITE (6,20)  TIME+TOFF, NSTEP1, NN, NPERT, NAME(JCLOSE),
+     &              SQRT(RX), GPERT, 1.0/RINV(1)
+   20 FORMAT (/,' CHAIN INJECT    T # NN NP NM RX GP RB ',
+     &                            F9.3,I6,2I4,I8,1P,3E10.2)
 *
 *     NNB = LISTC(1) + 2
 *     LISTC(NNB) = ICH
 *     DO 30 L = 2,NNB
 *     J = LISTC(L)
-*     WRITE (3,25) J, NAME(J),BODY(J), STEP(J), (X(K,J),K=1,3)
+*     WRITE (6,25) J, NAME(J),BODY(J), STEP(J), (X(K,J),K=1,3)
 *  25 FORMAT (' LISTC   J NM S M X  ',2I7,1P,2E10.2,2X,3E10.2)
 *  30 CONTINUE
 *
@@ -60,6 +65,6 @@
 *       Update perturber list.
       CALL CHLIST(ICH)
 *
-      RETURN
+   50 RETURN
 *
       END

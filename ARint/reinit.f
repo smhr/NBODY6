@@ -26,7 +26,7 @@
 *       Re-initialize neighbour list of c.m. and form perturber list.
       RS0 = RS(ICH)
       CALL NBLIST(ICH,RS0)
-      CALL CHLIST(ICH)
+      IF (NCH.GT.2) CALL CHLIST(ICH)  !  avoids large GPERT at the end.
       NNB1 = LIST(1,ICH) + 1
 *
 *       Predict neighbours to FDOT and c.m. to FDOT3.

@@ -327,6 +327,16 @@
       NSTEP1 = NSTEP1 + 1
       TPR0 = TPR
 *
+*       Predict perturbers & XC, UC and form new LISTC every 10 steps.
+      IF (MOD(NSTEP1,10).EQ.0) THEN
+          JJ = 0
+          CALL XCPRED(2)
+          CALL CHLIST(JJ)
+      ELSE
+*       Perform fast prediction of XC & UC every step (#ICH in INTGRT).
+          CALL XCPRED(0)
+      END IF
+*
 *       Save new step during standard integration for subsequent restart.
    22 IF (ICALL.EQ.0.AND.ICOLL.EQ.0) THEN
           SAVEIT = STEP
@@ -380,7 +390,7 @@
               IT = IT + 1
               go to 28
           end if
-          CALL SLOW(Y)
+          IF (KZ26.GE.2) CALL SLOW(Y)
           go to 20
       end if
 *
@@ -394,6 +404,7 @@
       IF (KZ30.GT.2) THEN
           WRITE (6,30)  STEP, TMAX-CHTIME, GPERT, (1.0/RINV(K),K=1,N-1)
    30     FORMAT (' CHAIN:   STEP TM-CHT G R  ',1P,8E9.1)
+      CALL FLUSH(6)
       END IF
 *
 *       Determine two-body distances for stability test and collision search.
@@ -634,7 +645,7 @@
           IF (ISW.GT.1) NREG = NREG + 1
 *       Update slow-down if relevant (avoids perturbation jump).
           IF (KSLOW.AND.ISW.GT.1) THEN
-              CALL SLOW(Y)
+              IF (KZ26.GE.2) CALL SLOW(Y)
           END IF
       END IF
 *

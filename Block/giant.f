@@ -74,12 +74,12 @@
 *       Set effective frequencies, overlap integrals and structure constants.
       DO 10 K = 1,2
           K1 = 3*K - 2
-	  IF (K.EQ.1) THEN
+          IF (K.EQ.1) THEN
               SW(K) = ((C3*SIG + C2)*SIG + C1)*SIG + C0
           ELSE
               SW(K) = ((E3*SIG + E2)*SIG + E1)*SIG + E0
-	  END IF
-	  W(K) = SW(K)**2
+          END IF
+          W(K) = SW(K)**2
           Q(K) = ((A3*SW(K) + A2)*SW(K) + A1)*SW(K) + A0
           WSCALE(K) = SQRT(W(K)/WW(K1))
           QSCALE(K) = (Q(K)/QQ(K1)/WSCALE(K))**2

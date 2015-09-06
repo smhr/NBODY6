@@ -12,7 +12,7 @@
       ZMX = 100.0*BODYM
       I = IFIRST - 1
     1 I = I + 1
-      IF (I.GT.N) GO TO 30
+      IF (I.GT.N.OR.NSUB.GT.0) GO TO 30
       IF (BODY(I).GT.ZMX) GO TO 2
       IF (STEP(I).GT.DTCL.OR.BODY(I).EQ.0.0D0) GO TO 1
     2 CONTINUE

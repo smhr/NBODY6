@@ -80,6 +80,7 @@
               END IF
               RJ = R(JPAIR)
               HJ = H(JPAIR)
+              RDOT = TDOT2(JPAIR)
 *       Determine merger & ghost index for negative c.m. name.
               IF (NAME(N+JPAIR).LT.0) THEN
                   CALL FINDJ(J1,J,IMERGE)
@@ -90,6 +91,10 @@
                   HJ = HM(IMERGE)
                   RJ = SQRT(XREL(1,IMERGE)**2 + XREL(2,IMERGE)**2 +
      &                                          XREL(3,IMERGE)**2)
+                  RDOT = 0.0
+                  DO K = 1,4
+                      RDOT = RDOT + UM(K,IMERGE)*UMDOT(K,IMERGE)
+                  END DO        
 *       Re-define index of second component and obtain parameters of M1.
                   J2 = J
                   AGE = MAX(TPLOT,TEV0(J1))*TSTAR - EPOCH(J1)
@@ -112,7 +117,7 @@
                   BODYI = CM(3,IMERGE) + CM(4,IMERGE)
               END IF
               SEMI = -0.5*BODYI/HJ
-              ECC2 = (1.0 - RJ/SEMI)**2
+              ECC2 = (1.0 - RJ/SEMI)**2 + RDOT**2/(BODYI*SEMI)
               ECC = SQRT(ECC2)
               PB = DAYS*SEMI*SQRT(ABS(SEMI)/BODYI)
               PB = MIN(PB,99999.9D0)
@@ -122,8 +127,8 @@
               R2 = LOG10(RM2)
               ZL1 = LOG10(LUM)
               ZL2 = LOG10(LUM2)
-              TE1 = 0.25*(ZL1 - 2.0*R1) + 3.7
-              TE2 = 0.25*(ZL2 - 2.0*R2) + 3.7
+              TE1 = 0.25*(ZL1 - 2.0*R1) + 3.76
+              TE2 = 0.25*(ZL2 - 2.0*R2) + 3.76
               WRITE (82,5)  NAME(J1), NAME(J2), KW, KW2, KSTAR(ICM),
      &            RI, ECC, PB, SEMI, M1, M2, ZL1, ZL2, R1, R2, TE1, TE2
     5         FORMAT (2I6,2I3,I4,F6.1,F6.3,10F7.3)

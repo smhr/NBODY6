@@ -88,7 +88,7 @@
       RJ = SQRT(RJJ)
 *     WRITE (6,18) NAME(J),NAME(JCOMP),GAMMA(IPAIR),GJ,R(IPAIR),RJ,RD,
 *    &             RDOT
-*  18 FORMAT (' NMJ NMJC GI GJ R RJ RD RDI ',2I5,2F6.2,1P,4E9.1)
+*  18 FORMAT (' FLYBY   NMJ NMJC GI GJ R RJ RD RDI ',2I5,2F6.2,1P,4E9.1)
 *
 *       Terminate if perturber & I1/I2 provides dominant force.
       APO = ABS(SEMI)*(1.0 + ECC)
@@ -112,7 +112,9 @@
               GO TO 20
           END IF
           ITERM = 1
-      ELSE IF (GJ.LT.0.7*GAMMA(IPAIR).AND.RD.LE.0.0) THEN
+*       Terminate for chain candidate but exclude H > 0 (avoids NEW KS).
+      ELSE IF (GJ.LT.0.7*GAMMA(IPAIR).AND.RD.LE.0.0.AND.
+     &         H(IPAIR).LT.0) THEN
           ITERM = 2
       END IF
 *

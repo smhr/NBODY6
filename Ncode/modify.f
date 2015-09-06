@@ -47,6 +47,7 @@
     5 FORMAT (///,7X,'RESTART PARAMETERS:   DTADJ =',F7.3,'  DELTAT =',
      &                            F7.3,'  TCRIT =',F7.1,'  QE =',1PE9.1,
      &                                            '  KZ(',I2,') =',I2,/)
+      CALL FLUSH(6)
 *
 *       Read new ETAI, ETAR, ETAU, DTMIN, RMIN, NCRIT (if > 0 & KSTART >= 4).
    10 IF (KSTART.GE.4) THEN

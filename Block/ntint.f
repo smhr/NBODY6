@@ -42,28 +42,28 @@
       T0(I) = T0(I) + STEP(I)
 *
       DO 10 K = 1,3
-	  DF = FI(K,I) - FIRR(K)
-	  FID = FIDOT(K,I)
-	  SUM = FID + FD(K)
-	  AT3 = 2.0D0*DF + DT*SUM
-	  BT2 = -3.0D0*DF - DT*(SUM + FID)
+          DF = FI(K,I) - FIRR(K)
+          FID = FIDOT(K,I)
+          SUM = FID + FD(K)
+          AT3 = 2.0D0*DF + DT*SUM
+          BT2 = -3.0D0*DF - DT*(SUM + FID)
 *
-	  X0(K,I) = XI(K) + (0.6D0*AT3 + BT2)*DTSQ12
-	  X0DOT(K,I) = XIDOT(K) + (0.75D0*AT3 + BT2)*DT13
+          X0(K,I) = XI(K) + (0.6D0*AT3 + BT2)*DTSQ12
+          X0DOT(K,I) = XIDOT(K) + (0.75D0*AT3 + BT2)*DT13
 *
 *       Update the corrected values (OK for test particles).
           X(K,I) = X0(K,I)
           XDOT(K,I) = X0DOT(K,I)
 *
-	  FI(K,I) = FIRR(K)
-	  FIDOT(K,I) = FD(K)
+          FI(K,I) = FIRR(K)
+          FIDOT(K,I) = FD(K)
           F(K,I) = 0.5D0*FIRR(K)
           FDOT(K,I) = ONE6*FD(K)
 *
 *       Form derivatives even though not needed for commensurate times.
           D1(K,I) = FD(K)
-	  D2(K,I) = (3.0D0*AT3 + BT2)*DT2
-	  D3(K,I) = AT3*DT6
+          D2(K,I) = (3.0D0*AT3 + BT2)*DT2
+          D3(K,I) = AT3*DT6
 *       NOTE: These are real derivatives!
    10 CONTINUE
 *
@@ -79,6 +79,11 @@
           TTMP = 0.5*STEP(I)
       ELSE
           TTMP = STEP(I)
+      END IF
+*
+*       Do not permit current TIME to be exceeded.
+      IF (T0(I) + TTMP.GT.TIME) THEN
+          TTMP = TIME - T0(I)
       END IF
 *
 *       Set new block step and update next time.

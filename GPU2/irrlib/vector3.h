@@ -2,7 +2,7 @@
 #define __VECTOR3_H
 
 #define USE_STD
-#define USE_BOOST
+//#define USE_BOOST
 
 #ifdef USE_STD
 #include <iostream>

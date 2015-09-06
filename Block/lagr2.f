@@ -138,6 +138,7 @@
 *
 *       Form sum of inverse separations to evaluate mass segregation.
       POT0 = 0.0
+      LX0 = MAX(LX0,1)
       DO 44 L = LX0,NP-1
           I = ILIST(L)
           DO 42 LL = L+1,NP
@@ -181,6 +182,7 @@
 *
 *       Form sum of inverse separations to evaluate mass segregation.
       POT12 = 0.0
+      RBH = 0.0
       DO 48 L = 1,N14-1
           I = ILIST(L)
           DO 47 LL = L+1,N14
@@ -196,7 +198,9 @@
    48 CONTINUE
 *       Define mean geometric distance (modified by binary 10/2/11).
       N14 = N14 + N14X
-      IF (N14.GT.1) RBH = FLOAT(N14)*(N14 - 1)/(2.0*POTBH)
+      IF (N14.GT.1.AND.POTBH.GT.0.0D0) THEN
+          RBH = FLOAT(N14)*(N14 - 1)/(2.0*POTBH)
+      END IF
 *       Omit internal binary contribution for secondary definition.
       IF (POT12.GT.0.0) THEN
           RX = FLOAT(N14-1)*(N14 - 2)/(2.0*(POTBH-POT12))
@@ -308,8 +312,9 @@
      &                           F7.1,I5,I6,I7,1X,5F7.3)
 *
       IF (N14.GT.1.OR.N13.GT.1) THEN
+          N140 = MAX(N14,0)
           N14 = MAX(N14,1)
-          WRITE (6,80)  TIME+TOFF, TPHYS, N14, ZMBH/FLOAT(N14), RBH,
+          WRITE (6,80)  TIME+TOFF, TPHYS, N140, ZMBH/FLOAT(N14), RBH,
      &                  SEMI, N13, R13, RX
    80     FORMAT (/,' BH/NS SUBSYSTEM:    T TPHYS NBH <MBH> RBH A ',
      &                                    'NS R13 RX ',

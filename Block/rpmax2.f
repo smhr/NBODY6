@@ -19,12 +19,12 @@
           M21 = M2/M1
           R21 = R2/R1
           KS(1) = KS1
-	  KS(2) = KS2
+          KS(2) = KS2
       ELSE
-	  M21 = M1/M2
-	  R21 = R1/R2
-	  KS(1) = KS2
-	  KS(2) = KS1
+          M21 = M1/M2
+          R21 = R1/R2
+          KS(1) = KS2
+          KS(2) = KS1
       END IF
 *
 *       Choose polytropic index for each star (adopt n=1.5 for giants).

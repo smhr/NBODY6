@@ -1,6 +1,6 @@
       subroutine rkint(dt,u)
 
-*	Runge-Kutta integrator.
+*       Runge-Kutta integrator.
 *       -----------------------
 
 *       Author:  Rosemary Mardling (3/98).
@@ -50,7 +50,7 @@
 
       subroutine deriv(u,du,iq)
 
-*	Differential equations for hierarchical binary.
+*       Differential equations for hierarchical binary.
 *       ----------------------------------------------
 
 *       Author:  Rosemary Mardling (3/98).
@@ -61,7 +61,7 @@
       real*8  ehat(3),hhat(3),qhat(3),edot(3),hdot(3),u(6),du(6)
       SAVE ITIME,IGR
       DATA ITIME,IGR /0,0/
-	
+
 
 *       Save initial basic elements.
       e0 = e
@@ -83,11 +83,11 @@
          hhat(i)=u(i+3)/hh
       enddo
 
-*	Calculate unit vector orthogonal to ehat and hhat (Peter's q).
+*       Calculate unit vector orthogonal to ehat and hhat (Peter's q).
 
       call cross(hhat,ehat,qhat)
 
-*	Calculate components of Peter's Sij tensor (third body average).
+*       Calculate components of Peter's Sij tensor (third body average).
 
       S11=-coeff*(3*(dot(HOhat,ehat))**2 - 1)
       S12=-3*coeff*dot(HOhat,ehat)*dot(HOhat,qhat)
@@ -95,7 +95,7 @@
       S22=-coeff*(3*(dot(HOhat,qhat))**2 - 1)
       S23=-3*coeff*dot(HOhat,qhat)*dot(HOhat,hhat)
 
-*	Calculate rate of change of evec and hvec.
+*       Calculate rate of change of evec and hvec.
 
       do i=1,3
          edot(i)=(e*a*hh/2/mb)*

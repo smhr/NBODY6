@@ -43,6 +43,7 @@
       EKICK = 0.0
       ESYNC = 0.0D0
       ETIDE = 0.0D0
+      EPL = 0.0
       ESESC = 0.0D0
       EBESC = 0.0D0
       EMESC = 0.0D0
@@ -50,6 +51,7 @@
       SBCOLL = 0.0D0
       BBCOLL = 0.0D0
       CHCOLL = 0.0D0
+      EBH = -5.0D-06   ! temporary def for KSINIT with primordials.
       NPAIRS = 0
       NBPREV = 0
       NNTB = 0
@@ -59,6 +61,7 @@
       NCH = 0
       NBIN0 = 0
       NHI0 = 0
+      NDISR = 0
       IFIRST = 1
       IPHASE = 0
       ICOMP = 0

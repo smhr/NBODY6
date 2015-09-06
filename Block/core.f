@@ -141,8 +141,8 @@
       END IF
 *
 *       Set square core radius and its inverse for routine REGINT.
-      RC2 = RC**2
-      RC2IN = 1.0/RC2
+      RC22 = RC**2
+      RC2IN = 1.0/RC22
 *
 *       Sum particles & mass inside the core radius and set rms velocity.
       NC1 = 0
@@ -154,7 +154,7 @@
           YID = X(2,I) - RDENS(2)
           ZID = X(3,I) - RDENS(3)
           RID2 = XID**2 + YID**2 + ZID**2
-          IF (RID2.LT.RC2) THEN
+          IF (RID2.LT.RC22) THEN
               NC1 = NC1 + 1
               VC = VC + XDOT(1,I)**2 + XDOT(2,I)**2 + XDOT(3,I)**2
               ZMC = ZMC + BODY(I)

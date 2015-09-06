@@ -20,9 +20,13 @@
           DT = 0.1d0*STEP(I)
           IF (DT.GT.2.4E-11) THEN
               TIME2 = TIME - TPREV
-              CALL STEPK(DT,DTN)
-              TIME = TPREV + INT((TIME2 + DT)/DTN)*DTN
-              TIME = MIN(TBLOCK,TIME)
+              IF (TIME2.LE.16.0*STEP(I)) THEN
+                  CALL STEPK(DT,DTN)
+                  TIME = TPREV + INT((TIME2 + DT)/DTN)*DTN
+                  TIME = MIN(TBLOCK,TIME)
+              ELSE
+                  TIME = MIN(T0(I) + STEP(I),TBLOCK)
+              END IF
           ELSE
               TIME = MIN(T0(I) + STEP(I),TBLOCK)
           END IF
@@ -108,7 +112,7 @@
       SEMI = 2.d0/RIJ - VIJ2/ZM
       SEMI = 1.d0/SEMI
       TK = DAYS*SEMI*SQRT(ABS(SEMI)/ZM)
-      ECC = 1.0 - RCOLL/SEMI
+      ECC = MAX(1.0 - RCOLL/SEMI,0.001D0)
       IF (IQCOLL.EQ.5) THEN
           EB1 = -0.5*BODY(I1)*BODY(I2)/SEMI
       END IF
@@ -186,6 +190,7 @@
          TEV(I1) = TEV(I2)
          SPIN(I1) = SPIN(I2)
          RADIUS(I1) = RADIUS(I2)
+         RADIUS(I2) = 0.0
          NAME2 = NAME(I2)
          NAME(I2) = NAME(I1)
          NAME(I1) = NAME2
@@ -256,6 +261,15 @@
       JLIST(1) = I1
       JPERT(L2) = J2
 *
+*       Check removal of #I1 ghost neighbour if #I2 is first single particle.
+      IF (LIST(2,I1).EQ.I2) THEN
+          DO 21 L = 2,NNB
+              LIST(L,I1) = LIST(L+1,I1)
+   21     CONTINUE
+          NNB = NNB - 1
+          LIST(1,I1) = NNB
+      END IF
+*
 *       Include correction procedure in case of mass loss (cf routine MIX).
       IF (KZ(19).GE.3.AND.DM.GT.0.0) THEN
 *
@@ -287,7 +301,9 @@
           CALL FCORR(I1,DM,KW)
 *
 *       Specify commensurate time-step (not needed for BODY(I1) = 0).
-          CALL DTCHCK(TIME,STEP(I1),DTK(40))
+          IF (BODY(I1).GT.0.0D0) THEN
+              CALL DTCHCK(TIME,STEP(I1),DTK(40))
+          END IF
 *
 *       Set IPHASE = -3 to preserve ILIST.
           IPHASE = -3
@@ -325,7 +341,7 @@
                           D2(K,I1) = 0.d0
                           D3(K,I1) = 0.d0
    26                 CONTINUE
-                      T0(I1) = TADJ + DTADJ
+                      T0(I1) = 1.0D+06
                       WRITE (6,28)  NAME(I1), KW1
    28                 FORMAT (' MASSLESS PRIMARY!    NAM KW ',I8,I4)
                   ELSE
@@ -394,9 +410,12 @@
      &              KW1, ZMNEW*ZMBAR, RCOLL, EB, DP, DM*ZMBAR, VINF
    55 FORMAT (/,A8,'COAL    IQ =',I3,'  NAME =',2I6,'  K* =',3I3,
      &             '  M =',F6.2,'  RCOLL =',1P,E8.1,'  EB =',E9.1,
-     &             '  DP =',E9.1,'  DM =',0P,F6.2,'  VINF =',F4.1)
+     &             '  DP =',E9.1,'  DM =',0P,F6.2,'  VINF =',F5.1)
+      CALL FLUSH(6)
 *
       KSTAR(I1) = KW1
+*       Ensure a BH does not get a smaller type (should not happen).
+      IF (KSTAR(I2).EQ.14) KSTAR(I1) = 14
       KSTAR(I2) = 15
 *       Specify IPHASE < 0 for new sorting.
       IPHASE = -1

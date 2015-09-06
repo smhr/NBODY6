@@ -9,8 +9,8 @@
      &                LISTC(LMAX)
       REAL*8  XI(6),VI(6),FP(6),FD(6),TF(3),TD(3),XK(6),VK(6),RDOT(3)
       REAL*8  UI(4),UIDOT(4),XREL(3),VREL(3)
-      SAVE IC
-      DATA IC /0/
+      SAVE IC,IX
+      DATA IC,IX /0,0/
       SAVE HIP
       DATA HIP /0.0D0/
 *
@@ -258,18 +258,20 @@
    70     CONTINUE
       END IF
 *
-*       Include optional post-Newtonian terms in the perturbation.
-      IF (KZ(47).GT.0.AND.MAX(KSTAR(I1),KSTAR(I1+1)).GE.13) THEN
+*       Include Post-Newtonian terms in the perturbation.
+      IF (KZ(49).GT.0.AND.MAX(KSTAR(I1),KSTAR(I1+1)).GE.13) THEN
           IP = KVEC(I1)
-*       Adopt a simple distance criterion for now (weak PN).
-          IF (R(IP).LT.1000.0*RZ) THEN
+          SEMI = -0.5*BODY(I)/H(IP)
+          ECC2 = (1.0 - R(IP)/SEMI)**2 + TDOT2(IP)**2/(BODY(I)*SEMI)
+          DW = 3.0*TWOPI*BODY(I)/(SEMI*CLIGHT**2*(1.0 - ECC2))
+*         IF (R(IP).LT.1000.0*RZ) THEN
+*       Adopt Einstein shift with constant elements instead of a variable R.
+          IF (DW.GT.1.0D-04) THEN
               DH = H(IP) - HIP
 *       Skip the energy correction after significant change (new KS).
               IF (ABS(DH).GT.1.0D-04*ABS(H(IP))) THEN
                   IC = 0
                   HIP = H(IP)
-      WRITE (6,111)  DH, ECOLL
-  111 FORMAT (' CORRECTION    DH ECOLL  ',1P,E10.2,E12.4)
               ELSE
                   IC = IC + 1
               END IF
@@ -284,12 +286,29 @@
               CALL PNPERT2(BODY(I1),BODY(I1+1),XREL,VREL,TF,TD,DT,IC,
      &                     CLIGHT,DE)
 *       Accumulate the GR energy loss in ECOLL using Hermite integration.
-              ECOLL = ECOLL - DE
+              IF (IC.GT.0) THEN
+                  ECOLL = ECOLL - DE
+              ELSE
+                  IC = 1
+              END IF
 *       Combine the pertubations.
               DO 80 K = 1,3
                   FP(K) = FP(K) + TF(K)
                   FD(K) = FD(K) + TD(K)
    80         CONTINUE
+*       Signal termination for pericentre < 10*RSCH (experimental).
+              PMIN = SEMI*(1.0 - SQRT(ECC2))
+              RSCH = 6.0*BODY(I)/CLIGHT**2
+*             IF (PMIN.LT.10000.0*RSCH.AND.IX.GT.1000) IPHASE = -1
+*             IF (DW.GT.1.0D-02.AND.IX.GT.1000) IPHASE = -1
+              IX = IX + 1
+              IF (MOD(IX,100).EQ.0) THEN
+                  WRITE (50,90)  TIME+TOFF, SQRT(ECC2), SEMI, DW, DE,
+     &                           ECOLL, PMIN
+   90             FORMAT (' PNPERT    T ECC A DW DE ECOLL PM ',
+     &                                F10.4,F8.4,1P,5E10.2)
+                  CALL FLUSH(50)
+              END IF
           END IF
       END IF
 *

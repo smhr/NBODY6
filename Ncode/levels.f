@@ -21,9 +21,11 @@
       DO 20 I = IFIRST,NTOT
           IF (BODY(I).EQ.0.0D0) GO TO 20
           J = 1 - LOG(STEP(I))*FAC
+          J = MAX(J,1)     ! watch out for SMAX increasing to 2.0.
           IHIST(J) = IHIST(J) + 1
           JMAX = MAX(J,JMAX)
           J = 1 - LOG(STEPR(I))*FAC
+          J = MAX(J,1)
           IHISTR(J) = IHISTR(J) + 1
           JMAXR = MAX(J,JMAXR)
    20 CONTINUE

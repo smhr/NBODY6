@@ -53,10 +53,10 @@
 *
 *       See whether the regular time-step can be shortened.
               IF (T0R(J) + 0.5*STEPR(J).GE.TMIN.AND.IT.LT.5) THEN
-                  WRITE (29,8)  J, SQRT(R2), SQRT(FI2/FJ2), DT, STEPR(J)
+                  WRITE (14,8)  J, SQRT(R2), SQRT(FI2/FJ2), DT, STEPR(J)
     8             FORMAT (' SHRINK    J R FI/FJ DT STEP ',
      &                                I6,F7.3,F6.2,1P,2E10.2)
-                  CALL FLUSH(29)
+                  CALL FLUSH(14)
                   STEPR(J) = 0.5*STEPR(J)
                   IF (STEP(J).GT.STEPR(J)) THEN
                       STEP(J) = 0.5*STEP(J)

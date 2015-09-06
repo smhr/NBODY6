@@ -142,7 +142,7 @@
 *
 *       Re-activate any merged binary before terminating as last pair.
           IF (NAME(JCLOSE).LT.0) THEN
-              WRITE (3,15)  JCLOSE, RSUM,  R(JCLOSE-N)
+              WRITE (6,15)  JCLOSE, RSUM,  R(JCLOSE-N)
    15         FORMAT (/,5X,'WARNING!    SETSYS    JCLOSE RSUM R ',
      &                                            I5,1P,2E10.2)
               IPHASE = 7

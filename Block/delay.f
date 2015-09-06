@@ -10,7 +10,10 @@
 *
 *       Ensure correct value of IPHASE (KSPAIR is set for IPH=4 & 8).
       IF (KS.EQ.-2) THEN
-          IPHASE = KCH
+*       Avoid merger (IPH = 6) if chain indicator set by KSINT.
+          IF (IPH0.EQ.8.AND.KCH.EQ.6) GO TO 10
+          IPH0 = KCH
+          IPHASE = KCH    ! Note merger may be specified on same block-step.
           GO TO 10
       END IF
 *
@@ -54,6 +57,7 @@
               KSPAIR = KS2
 *       Specify JCOMP < 0 to prevent spurious prediction second KSTERM call.
               JCOMP = -1
+              IF (KZ(26).LT.2) JCLOSE = 0   ! bug fix 14/6/14
           END IF
 *
 *       Save KSTAR (> 0) and sum of component names (for chain termination).
@@ -70,6 +74,8 @@
           IF (KCHAIN.GT.0) THEN
               IPHASE = 8
           END IF
+*       Copy index for SETSYS (JCLOSE > N suffices for B-B case).
+          JCLOSE = JC0
       END IF
 *
    10 RETURN

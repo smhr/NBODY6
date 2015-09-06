@@ -159,11 +159,6 @@
 *    &                            (FDR(K) + FD(K))*PX
 *       Second-order term derived by Douglas Heggie (Aug/03).
    24         CONTINUE
-*       Accumulate tidal energy change for general galactic potential.
-*             ETIDE = ETIDE - BODY(I)*((ONE6*W3DOT*DTR - 0.5*W2DOT)*DTR
-*    &                                                 + WDOT)*DTR
-*       Note Taylor series at end of interval with negative argument.
-              ETIDE = ETIDE + BODY(I)*(0.5*W2DOT*DTR - WDOT)*DTR
           END IF
       END IF
 *
@@ -187,8 +182,18 @@
           END IF
           NBVOID = NBVOID + 1
           IRSKIP = 1
+          NBGAIN = 0
+          NBLOSS = NNB0
+          DO 28 L = 1,NNB0
+              JLIST(L) = LIST(L+1,I)
+   28     CONTINUE
+*       Accumulate tidal energy change for general galactic potential.
+          IF (KZ(14).EQ.3) THEN
+              ETIDE = ETIDE + BODY(I)*(0.5*W2DOT*DTR - WDOT)*DTR
+*       Note Taylor series at end of interval with negative argument.
+          END IF
 *       Skip another full N loop.
-          GO TO 50
+          GO TO 70
       END IF
 *
 *       Restrict neighbour number < NNBMAX to permit one normal addition.
@@ -271,7 +276,7 @@
       IF ((A3 - FLOAT(NNB0))*(A3 - FLOAT(NNB)).LT.0.0) A4 = SQRT(A4)
 *
 *       Modify volume ratio by radial velocity factor outside the core.
-      IF (RI2.GT.RC2.AND.KZ(39).EQ.0.AND.RI2.LT.9.0*RH2) THEN
+      IF (RI2.GT.RC22.AND.KZ(39).EQ.0.AND.RI2.LT.9.0*RH2) THEN
           RIDOT = (XI(1) - RDENS(1))*XIDOT(1) +
      &            (XI(2) - RDENS(2))*XIDOT(2) +
      &            (XI(3) - RDENS(3))*XIDOT(3)
@@ -317,8 +322,8 @@
       END IF
 *
 *       Calculate the radial velocity with respect to at most 3 neighbours.
-      IF (NNB.LE.3.AND.RI2.GT.RH2) THEN
-          A1 = 2.0*RS(I)
+      IF (NNB.LE.3.AND.RI2.LT.RH2) THEN
+          A1 = 1.2*RS(I)
 *
           DO 45 L = 1,NNB
               J = ILIST(L+1)
@@ -346,7 +351,7 @@
       END IF
 *
 *       Find loss or gain of neighbours at the same time.
-   50 NBLOSS = 0
+      NBLOSS = 0
       NBGAIN = 0
 *
 *       Accumulate tidal energy change for general galactic potential.
@@ -493,21 +498,18 @@
           FDR0 = FDR(K) - (FIDOT(K,I) - FD(K))
 *
           FRD = FRDOT(K,I)
-	  SUM = FRD + FDR0
-	  AT3 = 2.0D0*DFR + DTR*SUM
-	  BT2 = -3.0D0*DFR - DTR*(SUM + FRD)
+          SUM = FRD + FDR0
+          AT3 = 2.0D0*DFR + DTR*SUM
+          BT2 = -3.0D0*DFR - DTR*(SUM + FRD)
 *
-	  X0(K,I) = X0(K,I) + (0.6D0*AT3 + BT2)*DTSQ12
-	  X0DOT(K,I) = X0DOT(K,I) + (0.75D0*AT3 + BT2)*DTR13
-*
-*         X0(K,I) = X(K,I)
-*         X0DOT(K,I) = XDOT(K,I)
+          X0(K,I) = X0(K,I) + (0.6D0*AT3 + BT2)*DTSQ12
+          X0DOT(K,I) = X0DOT(K,I) + (0.75D0*AT3 + BT2)*DTR13
 *
           FI(K,I) = FIRR(K)
-	  FR(K,I) = FREG(K)
+          FR(K,I) = FREG(K)
           F(K,I) = 0.5D0*(FREG(K) + FIRR(K))
           FIDOT(K,I) = FD(K)
-	  FRDOT(K,I) = FDR(K)
+          FRDOT(K,I) = FDR(K)
           FDOT(K,I) = ONE6*(FDR(K) + FD(K))
 *
           D0(K,I) = FIRR(K)
@@ -518,8 +520,8 @@
           D1(K,I) = FD(K)
           D1R(K,I) = FDR(K)
 *       Set second & third derivatives based on old neighbours (cf. FPCORR).
-	  D2R(K,I) = (3.0D0*AT3 + BT2)*DT2
-	  D3R(K,I) = AT3*DT6
+          D2R(K,I) = (3.0D0*AT3 + BT2)*DT2
+          D3R(K,I) = AT3*DT6
    75 CONTINUE
 *
 *       Correct force polynomials due to neighbour changes (KZ(38) or I > N).
@@ -595,7 +597,7 @@
       END IF
 *
 *       Impose a smooth step reduction inside compact core.
-      IF (NC.LT.50.AND.RI2.LT.RC2) THEN
+      IF (NC.LT.50.AND.RI2.LT.RC22) THEN
           TTMP = TTMP*MIN(1.0D0,0.5D0*(1.0D0 + RI2*RC2IN))
       END IF
 *
@@ -624,6 +626,13 @@
           NICONV = NICONV + 1
           GO TO 110
       END IF
+*
+*       Reduce irregular step on switching from zero neighbour number.
+      IF (NNB0.EQ.0.AND.NNB.GT.0) THEN
+          STEP(I) = 0.25*STEP(I)
+          TNEW(I) = T0(I) + STEP(I)
+      END IF
+*
       NSTEPR = NSTEPR + 1
 *
       RETURN

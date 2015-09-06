@@ -219,27 +219,27 @@
       T0(I) = TIME
 *
       DO 80 K = 1,3
-	  DF = FI(K,I) - FIRR(K)
-	  FID = FIDOT(K,I)
-	  SUM = FID + FD(K)
-	  AT3 = 2.0D0*DF + DT*SUM
-	  BT2 = -3.0D0*DF - DT*(SUM + FID)
+          DF = FI(K,I) - FIRR(K)
+          FID = FIDOT(K,I)
+          SUM = FID + FD(K)
+          AT3 = 2.0D0*DF + DT*SUM
+          BT2 = -3.0D0*DF - DT*(SUM + FID)
 *
-	  X0(K,I) = XI(K) + (0.6D0*AT3 + BT2)*DTSQ12
-	  X0DOT(K,I) = XIDOT(K) + (0.75D0*AT3 + BT2)*DT13
+          X0(K,I) = XI(K) + (0.6D0*AT3 + BT2)*DTSQ12
+          X0DOT(K,I) = XIDOT(K) + (0.75D0*AT3 + BT2)*DT13
 *
 *         X0(K,I) = X(K,I)
 *         X0DOT(K,I) = XDOT(K,I)
 *
-	  FI(K,I) = FIRR(K)
-	  FIDOT(K,I) = FD(K)
+          FI(K,I) = FIRR(K)
+          FIDOT(K,I) = FD(K)
 *       Use total force for irregular step (cf. Makino & Aarseth PASJ, 1992).
           FDUM(K) = FIRR(K) + FR(K,I)
 *
           D0(K,I) = FIRR(K)
           D1(K,I) = FD(K)
-	  D2(K,I) = (3.0D0*AT3 + BT2)*DT2
-	  D3(K,I) = AT3*DT6
+          D2(K,I) = (3.0D0*AT3 + BT2)*DT2
+          D3(K,I) = AT3*DT6
 *       NOTE: These are real derivatives!
    80 CONTINUE
 *

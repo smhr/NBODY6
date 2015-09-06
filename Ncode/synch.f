@@ -188,8 +188,7 @@
               CALL GIANT(IPAIR,IK,WG,QG,WSCALE,QSCALE,XN,QL)
               W(K) = WG(1)
               Q(K) = QG(1)
-*             rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
-              rg2(k) = K2*(1.0 - CM(K,IC)/BODY(IK))
+              rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
               QD = QL
           ELSE
               QL = 1.0E+04
@@ -257,7 +256,7 @@
           M0 = BODY0(J2)*SMU
           MC2 = CM(2,IC)*SMU
           IF (MC2.LE.0.0D0.OR.MC2.GT.M0) THEN
-              MC2 = 0.3 + 0.1*(KSTAR(J1) - 3)
+              MC2 = 0.3 + 0.1*(KSTAR(J2) - 3)
               IF(KW.EQ.9) MC2 = MIN(0.3D0,0.95*M0)
               CM(2,IC) = MC2/ZMBAR
           END IF

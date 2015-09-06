@@ -9,8 +9,7 @@
 *
 *
 *       Check option for printing single bodies.
-      IF (KZ(9).EQ.0) GO TO 20
-      K = KZ(9)
+      IF (KZ(6).LE.2) GO TO 20
       IBODY = MIN(5**K,NTOT)
 *
       DO 10 I = 1,IBODY
@@ -40,9 +39,7 @@
    10 CONTINUE
 *
 *       Optional search for soft binaries (frequency NFIX with KZ(6) = 4).
-   20 IF (KZ(6).EQ.0) GO TO 70
-      IF (KZ(6).EQ.2) GO TO 50
-      IF (KZ(6).EQ.4.AND.NPRINT.NE.1) GO TO 50
+   20 IF (KZ(6).GT.1) GO TO 50
       SIMAX = 0.01*TCR
 *
       DO 40 I = IFIRST,NTOT
@@ -86,7 +83,7 @@
      &                                              1P,E10.1,0P,F7.2,I4)
    40 CONTINUE
 *
-*       Output of regularized binaries (frequency NFIX with KZ(6) = 4).
+*       Output of regularized binaries.
    50 DO 60 JPAIR = 1,NPAIRS
           IF (H(JPAIR).GE.0.0) GO TO 60
           I = 2*JPAIR - 1
@@ -109,6 +106,6 @@
      &                  LIST(1,N+JPAIR), GAMMA(JPAIR), VI, KSLOW(JPAIR)
    60 CONTINUE
 *
-   70 RETURN
+      RETURN
 *
       END

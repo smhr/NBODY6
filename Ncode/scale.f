@@ -5,7 +5,7 @@
 *       ---------------------
 *
       INCLUDE 'common6.h'
-      REAL*8  RSAVE(3,NMAX),VSAVE(3,NMAX),BSAVE(NMAX)
+      REAL*8  RSAVE(3,2*KMAX),VSAVE(3,2*KMAX),BSAVE(2*KMAX)
       real*8 G, M_sun, R_sun, pc, Km, Kmps
       real*8 mscale, lscale, vscale
       SAVE RSAVE,VSAVE,BSAVE
@@ -375,14 +375,16 @@
           DO 86 I = 1,N
               write (99,84)  BODY(I)*mscale, (X(K,I)*lscale,K=1,3),
      &                       (XDOT(K,I)*vscale,K=1,3)
+              BODY0(I) = BODY(I)
    86     CONTINUE
       END IF
 *
-*       Check option for reading initial subsystems.
+*       Check option for reading initial subsystems (solar masses).
       IF (KZ(24).GT.0) THEN
           K = KZ(24)
           DO 90 I = 1,K
               READ (5,*)  BODY(I), (X(J,I),J=1,3), (XDOT(J,I),J=1,3)
+              BODY(I) = BODY(I)/(ZMBAR*FLOAT(N))
    90     CONTINUE
       END IF
 *
@@ -398,9 +400,9 @@
       VC = SQRT(2.0D0*ABS(E0)/ZMASS)
 *
 *       Check for general binary search of initial condition.
-      IF (KZ(4).GT.0) THEN
-          CALL EVOLVE(0,0)
-      END IF
+*     IF (KZ(4).GT.0) THEN
+*         CALL EVOLVE(0,0)
+*     END IF
 *
 *       Print half-mass relaxation time & equilibrium crossing time.
       A1 = FLOAT(NCM)

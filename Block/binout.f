@@ -51,7 +51,7 @@
           END IF
           RI2 = (X(1,I) - RDENS(1))**2 + (X(2,I) - RDENS(2))**2 +
      &                                   (X(3,I) - RDENS(3))**2
-          IF (RI2.LT.RC2) JC = JC + 1
+          IF (RI2.LT.RC22) JC = JC + 1
 *
 *       Adopt logarithmic distribution of semi-major axis (factor 2).
           SEMI = -0.5D0*BODY(I)/H(J)

@@ -12,7 +12,7 @@
       IF (IPAIR.GT.0) THEN
           THETA = 0.25D0*TWOPI
           IKICK = 0
-      ELSE
+      ELSE IF (IPAIR.LT.0) THEN
           THETA = 0.5*TWOPI*RAN2(IDUM1)
           IPAIR = -IPAIR
 *       Note new type not known here but WD case kick decided by option #25.
@@ -22,6 +22,21 @@
           T0(2*IPAIR-1) = TIME
 *       Skip hyperbolic orbit (i.e. kick for second binary component).
           IF (H(IPAIR).GT.0.0) GO TO 30
+      ELSE
+*       Include small angle for moving away from pericentre.
+          THETA = 1.0
+          IKICK = -1
+          IPAIR = KSPAIR
+*       Adopt half regularized period near small pericentre.
+          SEMI = -0.5D0*BODY(N+IPAIR)/H(IPAIR)
+          ECC2 = (1.0 - R(IPAIR)/SEMI)**2 +
+     &                          TDOT2(IPAIR)**2/(BODY(N+IPAIR)*SEMI)
+          ECC = SQRT(ECC2)
+          IF (ECC.LT.1.0) THEN
+              THETA = 0.25*TWOPI   ! orbit will now get near apocentre.
+          END IF
+          WRITE (6,66)  ECC, THETA, SEMI, SEMI*(1.0 - ECC)
+   66     FORMAT (' KSAPO    E THETA A PM ',F10.6,F7.3,1P,2E10.2)
       END IF
 *
 *       Form transformation coefficients (Stiefel & Scheifele p. 85).

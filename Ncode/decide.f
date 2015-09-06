@@ -1,4 +1,4 @@
-      SUBROUTINE DECIDE(IPAIR,SEMI,ECC,EMAX,EMIN,TC,TG,EDAV,IQ)
+      SUBROUTINE DECIDE(IPAIR,JCL,SEMI,ECC,EMAX,EMIN,TC,TG,EDAV,IQ)
 *
 *
 *       Merger decision.
@@ -46,8 +46,8 @@
           GO TO 30
       END IF
 *
-*       Obtain eccentricity derivative due to #JCOMP (KS resolved in INDUCE).
-      CALL EDOT(I1,I2,JCOMP,SEMI,ECC,ECCDOT)
+*       Obtain eccentricity derivative due to #JCL (KS resolved in INDUCE).
+      CALL EDOT(I1,I2,JCL,SEMI,ECC,ECCDOT)
 *
 *       Define c.m. index and set maximum stellar radius and peri.
       I = N + IPAIR
@@ -76,7 +76,7 @@
           IF (PMIN.GT.RM) THEN
               ICIRC = -1
               CALL TCIRC(PMIN,ECC,I1,I2,ICIRC,TC1)
-*             CALL EDOT(IPAIR,JCOMP,SEMI,ECC,ECCDOT)
+*             CALL EDOT(I1,I2,JCL,SEMI,ECC,ECCDOT)
               CALL ECIRC(PMIN,ECC,I1,I2,ICIRC,TG,TC2,ECC2,EDT)
 *             WRITE (6,10)  ECCDOT, R(IPAIR), SEMI, TDOT2(IPAIR)
 *  10         FORMAT (' ECIRC:   ECDOT R A TD2 ',1P,4E10.2)
@@ -155,7 +155,7 @@
    30 TG1 = TIME + DT1
       IF (IQ.EQ.0) THEN
           TMDIS(NMERGE+1) = MIN(TG1,TMDIS(NMERGE+1))
-*     WRITE (6,55) TIME, NAME(I1), NAME(JCOMP), ECC, EMAX,DT1, TG, SEMI
+*     WRITE (6,55) TIME, NAME(I1), NAME(JCL), ECC, EMAX,DT1, TG, SEMI
 *  55 FORMAT (' WATCH!   T NM NMJ E EX DT1 TG A  ',
 *    &                   F10.4,2I7,2F8.4,1P,3E10.2)
       END IF

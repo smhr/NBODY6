@@ -5,7 +5,7 @@
 *       -------------------
 *
       INCLUDE 'common6.h'
-      COMMON/GAMDOT/  DGAM
+*     COMMON/GAMDOT/  DGAM
       REAL*8  XCM(3),VCM(3),WORK(10)
       INTEGER  IFLAG(KMAX),IOUT(LMAX)
 *

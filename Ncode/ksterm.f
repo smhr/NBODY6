@@ -9,7 +9,7 @@
       COMMON/BINARY/  CM(4,MMAX),XREL(3,MMAX),VREL(3,MMAX),
      &                HM(MMAX),UM(4,MMAX),UMDOT(4,MMAX),TMDIS(MMAX),
      &                NAMEM(MMAX),NAMEG(MMAX),KSTARM(MMAX),IFLAG(MMAX)
-      REAL*8  SAVE(15)
+      REAL*8  SAVE(15),FREG(3),FDREG(3),F1(3),F1DOT(3),A(9)
 *
 *
 *       Copy pair index from COMMON save and define KS components & c.m.
@@ -18,6 +18,16 @@
       I2 = I1 + 1
       ICM = N + IPAIR
       JMIN = 0
+*
+*       Save regular c.m. step and form irregular time-step (cf. ADJUST).
+      CMSTEP = STEPR(ICM)
+      DTCL = 0.04*SQRT(R(IPAIR)**3/BODY(ICM))
+*       Include first-order prediction in regular force & derivative.
+      DTR = TIME - T0R(ICM)
+      DO 200 K = 1,3
+          FREG(K) = FR(K,ICM) + D1R(K,ICM)*DTR
+          FDREG(K) = FRDOT(K,ICM) + D2R(K,ICM)*DTR
+  200 CONTINUE
 *
 *       Prepare termination at block time (KS, triple, quad, chain or merge).
       IF (TIME.LE.TBLOCK.AND.IPHASE.LT.9) THEN
@@ -38,8 +48,8 @@
           IF (DT0.GT.STEP(I1)) THEN
               TIME = T0(I1) + STEP(I1)
               H0(IPAIR) = H(IPAIR)
-              Z = -0.5D0*H(IPAIR)*DTAU(IPAIR)**2
-              CALL STUMPF(IPAIR,Z)
+*             Z = -0.5D0*H(IPAIR)*DTAU(IPAIR)**2
+*             CALL STUMPF(IPAIR,Z)
               CALL KSINT(I1)
               DTU = DTAU(IPAIR)
               STEP(I1) = ((ONE6*TDOT3(IPAIR)*DTU + 0.5*TDOT2(IPAIR))*DTU
@@ -78,16 +88,18 @@
     3     TIME = TIME0
 *
 *       Predict X & XDOT for body #JCOMP (note TIME = TBLOCK if second call).
-          IF (JCOMP.GE.IFIRST) THEN
-              CALL XVPRED(JCOMP,-1)
-              IF (GAMMA(IPAIR).GT.0.2.AND.JCOMP.LE.N) THEN
-                  JMIN = JCOMP
+          IF (N.LT.5000.OR.IPHASE.NE.2) THEN
+              IF (JCOMP.GE.IFIRST) THEN   ! procedure suppressed for fast code.
+                  CALL XVPRED(JCOMP,-1)
+                  IF (GAMMA(IPAIR).GT.0.2.AND.JCOMP.LE.N) THEN
+                      JMIN = JCOMP
 *       Initialize T0, X0 & X0DOT for XVPRED & FPOLY on large perturbation.
-                  T0(JCOMP) = TIME
-                  DO 4 K = 1,3
-                      X0(K,JCOMP) = X(K,JCOMP)
-                      X0DOT(K,JCOMP) = XDOT(K,JCOMP)
-    4             CONTINUE
+                      T0(JCOMP) = TIME
+                      DO 4 K = 1,3
+                          X0(K,JCOMP) = X(K,JCOMP)
+                          X0DOT(K,JCOMP) = XDOT(K,JCOMP)
+    4                 CONTINUE
+                  END IF
               END IF
           END IF
       END IF
@@ -146,8 +158,8 @@
           WRITE (6,15)  TIME+TOFF, BODY(I1), BODY(I1+1), DTAU(IPAIR),
      &                  R(IPAIR), RI, H(IPAIR), IPAIR, GAMMA(IPAIR),
      &                  STEP(I1), LIST(1,I1), LIST(1,ICM), ERR
-   15     FORMAT (/,' END KSREG    TIME =',F8.2,2F8.4,F8.3,1P,E10.1,
-     &                       0P,F7.2,F9.2,I5,F8.3,1P,E10.1,2I5,1P,E10.2)
+   15     FORMAT (/,' END KSREG    TIME =',F8.2,1P,2E9.1,0P,F6.3,1P,
+     &                E10.1,0P,F7.2,F9.2,I5,F8.3,1P,E10.1,2I5,1P,E10.2)
       END IF
 *
 *       Obtain global coordinates & velocities.
@@ -190,7 +202,8 @@
           RIJ2 = (X(1,ICM) - X(1,J))**2 + (X(2,ICM) - X(2,J))**2 +
      &                                    (X(3,ICM) - X(3,J))**2
 *       Ensure that at least the predicted neighbour number is reached.
-          IF (RIJ2.LT.RS2.OR.L + NBP.GT.NNB1 + NNB) THEN
+          IF (RIJ2.LT.RS2.OR.(NNB1 + NNB - L.LE.NBP.AND.
+     &        NNB1.LT.NNBMAX-1)) THEN
               NNB1 = NNB1 + 1
               ILIST(NNB1) = J
           END IF
@@ -221,7 +234,7 @@
 *
           DO 30 K = 1,3
               SAVE(K) = X(K,I)
-              SAVE(K+3) = X0DOT(K,I)
+              SAVE(K+3) = XDOT(K,I)
    30     CONTINUE
 *       Current velocity has been set in routine RESOLV.
           SAVE(7) = BODY(I)
@@ -245,6 +258,7 @@
 *       Copy latest X & X0DOT (= 0) of single components for predictor.
                   X0(K,J) = X(K,J)
                   X0DOT(K,J) = X0DOT(K,J1)
+                  XDOT(K,J) = XDOT(K,J1)
    35         CONTINUE
               BODY(J) = BODY(J1)
               RS(J) = RS(J1)
@@ -357,18 +371,134 @@
 *       Predict current coordinates & velocities for the neighbours.
           CALL XVPRED(ICOMP,NNB1)
 *
-*       Obtain new polynomials & steps.
-          CALL FPOLY1(ICOMP,JCOMP,2)
-          CALL FPOLY2(ICOMP,JCOMP,2)
+*       Obtain new polynomials & steps (directly or using FREG from c.m.).
+          IF (N.LT.5000.OR.IPHASE.NE.2) THEN
+*       Use old method for non-standard termination (not from nbody6.f).
+*
+              CALL FPOLY1(ICOMP,JCOMP,2)
+              CALL FPOLY2(ICOMP,JCOMP,2)
 *
 *       Improve force polynomials of strong perturber after rectification.
-          IF (JMIN.GE.IFIRST) THEN
-              CALL FPOLY1(JMIN,JMIN,0)
-              CALL FPOLY2(JMIN,JMIN,0)
+              IF (JMIN.GE.IFIRST) THEN
+                  CALL FPOLY1(JMIN,JMIN,0)
+                  CALL FPOLY2(JMIN,JMIN,0)
+              END IF
+*
+          ELSE
+*
+*       Treat each component in turn.
+          I = ICOMP
+  100     DO 105 K = 1,3
+              FI(K,I) = 0.0
+              D1(K,I) = 0.0
+              FR(K,I) = FREG(K)
+              FRDOT(K,I) = FDREG(K)
+              D0R(K,I) = FREG(K)
+              D1R(K,I) = FDREG(K)  ! ignore old tidal force.
+  105     CONTINUE
+*
+*       Obtain irregular force & first derivative for body #I.
+          KDUM = 0
+          NNB = LIST(1,I)
+*       Loop over neighbours only (cf. FPOLY1).
+          DO 130 L = 2,NNB+1
+              J = LIST(L,I)
+              IF (J.GT.N) THEN
+                  JPAIR = J - N
+*       Use c.m. approximation for unperturbed binary.
+                  IF (LIST(1,2*JPAIR-1).GT.0) THEN
+                      KDUM = 2*JPAIR - 1
+                      J = KDUM
+                  END IF
+              END IF
+*
+  110         DO 115 K = 1,3
+                  A(K) = X(K,J) - X(K,I)
+                  A(K+3) = XDOT(K,J) - XDOT(K,I)
+  115         CONTINUE
+*
+              A(7) = 1.0/(A(1)*A(1) + A(2)*A(2) + A(3)*A(3))
+              A(8) = BODY(J)*A(7)*SQRT(A(7))
+              A(9) = 3.0*(A(1)*A(4) + A(2)*A(5) + A(3)*A(6))*A(7)
+*
+*       Accumulate irregular force and first derivative.
+              DO 120 K = 1,3
+                  F1(K) = A(K)*A(8)
+                  F1DOT(K) = (A(K+3) - A(K)*A(9))*A(8)
+                  FI(K,I) = FI(K,I) + F1(K)
+                  D1(K,I) = D1(K,I) + F1DOT(K)
+  120         CONTINUE
+*
+*       Check for KS component.
+              IF (J.EQ.KDUM) THEN
+                  J = J + 1
+                  GO TO 110
+              END IF
+  130     CONTINUE
+*
+*       Check option for external force.
+          IF (KZ(14).GT.0) THEN
+              CALL XTRNLD(I,I,1)
           END IF
+*
+*       Truncate the orbital time-step (formed from Kepler period).
+          CALL STEPK(DTCL,DTN)
+          STEP(I) = DTN
+          ITER = 0
+*       Perform commensurability check.
+  140     IF (DMOD(TIME,STEP(I)).NE.0.0D0) THEN
+              STEP(I) = 0.5D0*STEP(I)
+              ITER = ITER + 1
+              IF (ITER.LT.16.OR.STEP(I).GT.DTK(40)) GO TO 140
+              STEP(I) = DTK(40)
+          END IF
+*
+*       Initialize next irregular time and copy c.m. regular time-step.
+          TNEW(I) = TIME + STEP(I)
+          CALL STEPK(CMSTEP,DTN)
+          STEPR(I) = DTN
+          ITER = 0
+*       Perform commensurability check.
+  145     IF (DMOD(TIME,STEPR(I)).NE.0.0D0) THEN
+              STEPR(I) = 0.5D0*STEPR(I)
+              ITER = ITER + 1
+              IF (ITER.LT.16.OR.STEPR(I).GT.DTK(40)) GO TO 145
+              STEPR(I) = DTK(40)
+          END IF
+*  
+*       Set force and all derivatives.
+          DO 150 K = 1,3
+              F(K,I) = FI(K,I) + FR(K,I)
+              FDOT(K,I) = D1(K,I) + D1R(K,I)
+              F(K,I) = 0.5*F(K,I)
+              FDOT(K,I) = ONE6*FDOT(K,I)
+              D0(K,I) = FI(K,I)
+              FIDOT(K,I) = D1(K,I)
+              D2(K,I) = 0.0
+              D3(K,I) = 0.0
+              D0R(K,I) = FREG(K)
+              FR(K,I) = FREG(K)
+              FRDOT(K,I) = FDREG(K)
+              D1R(K,I) = FDREG(K)
+              D2R(K,I) = 0.0
+              D3R(K,I) = 0.0
+  150     CONTINUE
+*
+*       Treat second component in the same way.
+          IF (I.EQ.ICOMP) THEN
+              I = JCOMP
+              GO TO 100
+          END IF
+          END IF
+*
+*       Improve force polynomials of strong perturber after rectification.
+*         IF (JMIN.GE.IFIRST) THEN
+*             CALL FPOLY1(JMIN,JMIN,0)
+*             CALL FPOLY2(JMIN,JMIN,0)
+*         END IF
       END IF
 *
-*       Check updating of global index for chain c.m.
+*       Check updating of chain perturber list.
       IF (NCH.GT.0) THEN
           CALL CHFIND
       END IF

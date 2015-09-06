@@ -94,7 +94,7 @@
       XN = 0.0
       QD = 0.0
       DO 10 K = 1,2
-	  J = K + 2
+          J = K + 2
           IK = I1 + K - 1
           TDYN(K) = RADIUS(IK)*SQRT(RADIUS(IK)/BODY(IK))
 *       Specify polytropic index for each star (n = 2, 3 or 3/2).
@@ -114,7 +114,7 @@
               IF (KSTAR(IK).EQ.8) IP = 3
               IF (KSTAR(IK).EQ.0) IP = 1
               W(K) = WW(IP)
-	      W(J) = WW(IP+3)
+              W(J) = WW(IP+3)
           END IF
           ALF(K) = 2.0*TDYN(K)/SQRT(W(K))
           ALF(J) = 3.0*TDYN(K)/SQRT(W(J))
@@ -138,7 +138,7 @@
      &             RADIUS(I1),RADIUS(I2),W,ECRIT(IC),AR(IC),BR(IC),IDIS)
 *
 *       Begin spiralling stage if chaos boundary has been crossed.
-	  IF (IDIS.EQ.-1) THEN
+          IF (IDIS.EQ.-1) THEN
 *       Include safety check on skipping rare case of hyperbolic orbit.
               IF (ECC.GT.1.0) THEN
                   NCHAOS = NCHAOS - 1
@@ -176,7 +176,7 @@
               KSTAR(I) = -2
               TOSC(IC) = TIME
               RP(IC) = QPERI
-	      ES(IC) = ECC0
+              ES(IC) = ECC0
               NSP = NSP + 1
 *       Rectify the KS solution on transition to standard circularization.
               CALL KSRECT(IPAIR)
@@ -276,7 +276,7 @@
           EOSC(J,IC) = MAX(EOSC(J,IC),0.0D0)
           E2T = E2T + EOSC(K,IC)
           E3T = E3T + EOSC(J,IC)
-	  ZJOSC = ZJOSC + ALF(K)*EOSC(K,IC) + ALF(J)*EOSC(J,IC)
+          ZJOSC = ZJOSC + ALF(K)*EOSC(K,IC) + ALF(J)*EOSC(J,IC)
    20 CONTINUE
 *
 *       Specify change in oscillation energy and sum decayed energy.

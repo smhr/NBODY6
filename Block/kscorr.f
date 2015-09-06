@@ -41,10 +41,14 @@
      &           0.5*HDOT2(IPAIR))*DTU + HDOT(IPAIR))*DTU + H(IPAIR)
       DT12 = 12.0/DTU**2
 *
+*       Activate perturbation evaluation after one iteration above 1D-04.
+      ITP = 0
+      IF (GAMMA(IPAIR).GT.1.0D-04) ITP = 1
+*
 *       Perform one iteration without re-evaluating perturbations.
       DO 30 ITER = 1,2
 *
-*       Form new transformation matrix.
+*       Obtain new transformation matrix.
           CALL MATRIX(UI,A1)
 *
 *       Form twice regularized force and half first derivative of H.
@@ -89,17 +93,18 @@
           HD4 = (0.5*(HD2 + HDOT2(IPAIR)) + (HDOT(IPAIR) -HD)/DTU)*DT12
           HPRED = H(IPAIR) + (0.5*(HD + HDOT(IPAIR)) +
      &                       ONE12*(HDOT2(IPAIR) - HD2)*DTU)*DTU
-*         IF (ITER.LE.2) THEN
-*             I1 = 2*IPAIR - 1
-*             CALL TRANSF(I1,UI,UIDOT,XI,VI)
-*             NNB0 = 0
-*             I = N + IPAIR
-*             BODYIN = 1.0/BODY(I)
-*             CALL KSPERT2(I1,I,NNB0,BODYIN,Q1,Q2,Q3,RDOT,XI,VI,FP,FD)
-*             DO 28 K = 1,3
-*                 FD(K) = RI*FD(K)
-*  28         CONTINUE
-*         END IF
+*       Check for extra perturbation calculation.
+          IF (ITER.EQ.ITP) THEN
+              I1 = 2*IPAIR - 1
+              CALL KSTRAN(I1,UI,UIDOT,XI,VI)
+              NNB0 = LIST(1,I1)
+              I = N + IPAIR
+              BODYIN = 1.0/BODY(I)
+              CALL KSPERT2(I1,I,NNB0,BODYIN,Q1,Q2,Q3,RDOT,XI,VI,FP,FD)
+              DO 28 K = 1,3
+                  FD(K) = RI*FD(K)
+   28         CONTINUE
+          END IF
    30 CONTINUE
 *
 *       Form U4 & U5 and copy corrected values to common.

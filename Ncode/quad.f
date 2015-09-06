@@ -211,7 +211,7 @@
 *
 *       Determine dominant two-body energy from non-singular expressions.
               CALL EREL4(IM,EBS,SEMI)
-              DMINC = MIN(RCOLL,DMINC)
+              DMINC = MIN(RCOLL,DMINC)  ! note DMINC not in common6.
 *
 *       Form composite body and begin KS regularization of closest pair.
               CALL CMBODY(H4,4)

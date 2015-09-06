@@ -13,7 +13,7 @@
      &               BR(NTMAX),EOSC(4,NTMAX),EDEC(NTMAX),TOSC(NTMAX),
      &               RP(NTMAX),ES(NTMAX),CM(2,NTMAX),IOSC(NTMAX),
      &               NAMEC(NTMAX)
-      INTEGER JX(2),KACC
+      INTEGER JX(2),KACC,MLIST(10000)
       REAL*8 MASS(2),MASSC(2),RAD(2),RADC(2),LUMIN(2)
       REAL*8 AGE0(2),TM0(2),TBGB(2),MENV(2),RENV(2),K2STR(2)
       REAL*8 TSCLS(20),LUMS(10),GB(10),TM,TN
@@ -43,9 +43,41 @@
       IPOLY = 0
       TIME0 = TIME
       IBLUE = 0
+      TMDOT = 1.0D+10
 *
-*       Find global index of next star to be checked (NB! reset KS & IKS).
-    1 KS = 0
+*       Form list of look-up times and determine next TMDOT.
+    1 ML = 0
+      ML0 = 0
+      DO 2 J = 1,NTOT
+          IF (TEV(J).LE.TIME) THEN
+              ML0 = ML0 + 1
+              MLIST(ML0) = J
+          ELSE
+              TMDOT = MIN(TMDOT,TEV(J))
+          END IF
+    2 CONTINUE
+      IF (ML0.EQ.0) GO TO 810
+      IF (ML0.GE.10000) THEN
+          WRITE (6,3)  ML0, TIME
+    3     FORMAT (' DANGER!    MDOT LIMIT   ML T',I5,F8.2)
+          STOP
+      END IF
+*
+*       Treat list members sequentially until GO TO 5 at end.
+    4 ML = ML + 1
+      I = MLIST(ML)
+*
+*       Avoid the same binary or merger
+      IF (TEV(I).GT.TIME) THEN
+          IF (ML.LT.ML0) THEN
+              GO TO 4
+           ELSE
+              GO TO 100
+          END IF
+      END IF
+*
+*       Consider global index of next star (NB! reset KS & IKS).
+    5 KS = 0
       KSPAIR = 0
       IKS = 0
       ITRY = 0
@@ -58,21 +90,8 @@
 *       Restore synchronized TIME in case of RESET, CHRECT & KSPERI.
       TIME = TIME0
 *
-*       Determine smallest look-up time (< TIME!).
-      DO 5 J = 1,NTOT
-          IF (TEV(J).LE.TIME) THEN
-              I = J
-              GO TO 10
-          END IF
-    5 CONTINUE
-*
-*       Determine new evolution time (current TMDOT may be escaped star).
-      KW = 0
-      I = 1
-      GO TO 70
-*
 *       Include braking or merger termination at time for Roche overflow.
-   10 IF (I.GT.N.AND.NAME(I).LT.0.AND.KZ(34).GT.0) THEN
+      IF (I.GT.N.AND.NAME(I).LT.0.AND.KZ(34).GT.0) THEN
           KSPAIR = I - N
 *       Check spin synchronization of inner binary for small eccentricity.
           CALL SPINUP(KSPAIR,ITERM)
@@ -816,17 +835,36 @@
      &            (KW.NE.KSTAR(I).AND.
      &            (KW.GE.13.OR.(KW.GE.11.AND.KZ(25).GE.1).OR.
      &            (KW.EQ.10.AND.KZ(25).GT.1)))) THEN
-                  I = I + 2*(NPAIRS - KSPAIR)
-                  JX(K) = I
-                  IF(KACC.EQ.2)THEN
-                     JX(3-K) = JX(3-K) + 2*(NPAIRS - KSPAIR)
-                  ENDIF
+*
+                      J1 = 2*KSPAIR - 1
+                      IF (LIST(1,J1).EQ.0) NSTEPQ = NSTEPQ + 1
+*       Distinguish between perturbed and unperturbed case.
+                      J1 = 2*KSPAIR - 1
+                      IF (LIST(1,J1).EQ.0.AND..NOT.ICORR) THEN
+                          H00 = H(KSPAIR)
+*       Expand unperturbed orbit at constant eccentricity (KS = 0 no KSREG).
+                          CALL HCORR(I,DM,RNEW)  ! note c.m. updated here.
+                          KS = 0
+      WRITE (6,32)  NAME(J1), DM*SMU, R(KSPAIR), H(KSPAIR), H00-H(IPAIR)
+   32 FORMAT (' ZERO!!!   NM1 DMS R H DH ',I7,F7.3,1P,5E10.2)
+      CALL FLUSH(6)
+      IF (DM*SMU.GT.1.0D-05) STOP
+                      ELSE
+*       Treat general case as two single particles.
+                          I = I + 2*(NPAIRS - KSPAIR)
+                          JX(K) = I
+                          IF(KACC.EQ.2)THEN
+                             JX(3-K) = JX(3-K) + 2*(NPAIRS - KSPAIR)
+                          ENDIF
 *       Predict current KS variables and save at end of routine RESOLV.
-                  CALL RESOLV(KSPAIR,3)
-                  IPHASE = 2
-                  JCOMP = 0
-                  CALL KSTERM
-                  KS = 1
+                          CALL RESOLV(KSPAIR,3)
+                          IPHASE = 2
+                          IPOLY = -1
+                          JCOMP = 0
+                          CALL KSTERM
+      NESC = NESC + 1
+                          KS = 1
+                      END IF
                ELSE IF (DM.NE.0.D0) THEN
 *       Implement mass loss and expand KS orbit at constant eccentricity.
                   CALL HCORR(I,DM,RNEW)
@@ -877,13 +915,14 @@
 *       Accumulate total mass loss (solar units) and reduce cluster mass.
             ZMDOT = ZMDOT + DMSUN
             ZMASS = ZMASS - DM
-*       Update the maximum single body mass but skip compact subsystems.
-            IF(MASS(K)/ZMBAR.GE.0.99*BODY1.AND.NSUB.EQ.0)THEN
-               BODY1 = 0.d0
-               DO 35 J = 1,N
-                  BODY1 = MAX(BODY1,BODY(J))
-  35           CONTINUE
-            ENDIF
+*       Update the maximum single body mass from current star.
+            BODY1 = MAX(BODY1,MASS(K)/ZMBAR)
+*           IF(MASS(K)/ZMBAR.GE.0.99*BODY1.AND.NSUB.EQ.0)THEN
+*              BODY1 = 0.d0
+*              DO 35 J = 1,N
+*                 BODY1 = MAX(BODY1,BODY(J))
+* 35           CONTINUE
+*           ENDIF
 *
 *       Update the mass loss counters for types > 2.
             IF(KW.EQ.3)THEN
@@ -959,7 +998,7 @@
             IF (KW.EQ.13.OR.KW.EQ.14) IKICK = .TRUE.
 *
 *       Perform total force & energy corrections (delay dF if DMSUN > 0.1).
-            IF (DMSUN.LT.0.05.AND.(KW.LT.10.OR..NOT.IKICK)) THEN
+            IF (DMSUN.LT.0.1.AND.(KW.LT.10.OR..NOT.IKICK)) THEN
                 CALL FICORR(I,DM)
             ELSE
                 CALL FCORR(I,DM,KW)
@@ -974,6 +1013,8 @@
 *       Obtain new F & FDOT and time-steps (no gain skipping WDs).
                DO 50 L = 2,NNB2
                   J = ILIST(L)
+*       Skip possible ghost during merger (bug 6/15).
+                  IF (BODY(J).EQ.0.0D0) GO TO 50
                   IF (L.EQ.NNB2) J = I
 *                 CALL DTCHCK(TIME,STEP(J),DTK(MAXBLK)) ! no effect (08/10).
                   DO 45 KK = 1,3
@@ -1105,7 +1146,7 @@
          EPOCH(I) = AGE0(K) + EPCH0(K) - AGE
 *        TEV(I) = (AGE0(K) + EPCH0(K))/TSTAR
          TEV(I) = TEVK
-         TEV0(I) = TEV(I)
+         TEV0(I) = TEVK
 *        IF(I.EQ.IGHOST.OR.BODY(I).LE.0.0) RM0 = M1
          CALL TRDOT(I,DTM,M1)
          TEV(I) = TEV(I) + DTM
@@ -1236,10 +1277,10 @@
             IF(IQCOLL.NE.0.OR.IPHASE.LT.0) GO TO 1
 *
 *       Include optional look-up time control for compact object binaries.
-            IF (KSX.GE.13.AND.KZ(28).GT.2) THEN
-               WRITE (6,944)  TTOT, NAME(2*IPAIR-1),KSTAR(2*IPAIR),
-     &                        DTGR/TSTAR
-  944          FORMAT (' GR CHECK   T NAM K* DTGR ',F8.2,I6,I4,1P,E9.1)
+*           IF (KSX.GE.13.AND.KZ(28).GT.2) THEN
+*              WRITE (6,944)  TTOT, NAME(2*IPAIR-1),KSTAR(2*IPAIR),
+*    &                        DTGR/TSTAR
+* 944          FORMAT (' GR CHECK   T NAM K* DTGR ',F8.2,I6,I4,1P,E9.1)
 *              IF (KSX.GE.13.AND.KZ(28).GT.0) THEN
 *              GE = (1.0 - ECC2)**3.5/(1.0 + 3.0*ECC2)
 *              ZMX = MAX(BODY(2*IPAIR-1),BODY(2*IPAIR))
@@ -1256,7 +1297,7 @@
 *              TEV(2*IPAIR-1) = TIME + 0.01*TZ
 *              TEV(2*IPAIR) = TEV(2*IPAIR-1)
 *              TMDOT = MIN(TMDOT,TEV(2*IPAIR))
-            END IF
+*           END IF
 *
             IF(KSTAR(I).GT.0.AND.KZ(34).GT.0)THEN
 *       Ensure optional updating of orbit before possible Roche test (1/2013).
@@ -1284,18 +1325,24 @@
       ENDIF
 *
 *       Determine the time for next stellar evolution check.
-   70 TMDOT = 1.0d+10
-      DO 80 J = 1,NTOT
-         IF(TEV(J).LE.TMDOT)THEN
-            TMDOT = TEV(J)
-         ENDIF
-   80 CONTINUE
+*  70 TMDOT = 1.0d+10
+*     DO 80 J = 1,NTOT
+*        IF(TEV(J).LE.TMDOT)THEN
+*           TMDOT = TEV(J)
+*        ENDIF
+*  80 CONTINUE
 *
 *       See whether any other stars should be considered.
-      IF (TMDOT.LT.TIME) GO TO 1
+      IF (TEV(I).GT.TIME)  THEN
+          TMDOT = MIN(TMDOT,TEV(I))
+      ELSE
+          GO TO 5
+      END IF
+*       Check next member.
+      IF (ML.LT.ML0) GO TO 4
 *
 *       Update any merged circularizing binary using TMDIS.
-      IMERGE = 1
+  100 IMERGE = 1
   104 IF (NMERGE.GT.0) THEN
           IF (KSTARM(IMERGE).LT.0.AND.TMDIS(IMERGE).LT.TIME) THEN
               KSPAIR = 0
@@ -1329,27 +1376,39 @@
       IF (IMERGE.LE.NMERGE) GO TO 104
 *
 *       Update the maximum single body mass but skip compact subsystems.
-      IF(NSUB.EQ.0)THEN
-         BODY1 = 0.d0
-         DO 110 J = 1,N
-            BODY1 = MAX(BODY1,BODY(J))
-  110    CONTINUE
-      ENDIF
+*     IF(NSUB.EQ.0)THEN
+*        BODY1 = 0.d0
+*        DO 110 J = 1,N
+*           BODY1 = MAX(BODY1,BODY(J))
+* 110    CONTINUE
+*     ENDIF
 *
-      DO 122 J = N+1,NTOT
-         IF(KSTAR(J).EQ.0.AND.NAME(J).GT.0.AND.TEV(J).LT.9.9E+09.AND.
-     &      BODY(J).GT.0.0.AND.KZ(28).EQ.0)THEN
-            WRITE(6,556)J,NAME(J),TEV(J)
-            TEV(J) = 1.0d+10
- 556        FORMAT(' MDOT TEV SMALL ',2I8,1P,E10.2)
-         ENDIF
- 122  CONTINUE
+*     DO 122 J = N+1,NTOT
+*        IF(KSTAR(J).EQ.0.AND.NAME(J).GT.0.AND.TEV(J).LT.9.9E+09.AND.
+*    &      BODY(J).GT.0.0.AND.KZ(28).EQ.0)THEN
+*           WRITE(6,556)J,NAME(J),TEV(J)
+*           TEV(J) = 1.0d+10
+*556        FORMAT(' MDOT TEV SMALL ',2I8,1P,E10.2)
+*        ENDIF
+*122  CONTINUE
 *
 *       Ensure re-initialization of ICPERT (INTGRT) and KBLIST (SUBINT).
-      IF (IPOLY.LT.0) THEN
+  810 IF (IPOLY.LT.0) THEN
           IPHASE = -1
           NBPREV = 0
+      ELSE IF (IPOLY.GT.0) THEN
+          IPHASE = IPOLY
       END IF
+*     DO 888 IPAIR = 1,NPAIRS
+*     I1 = 2*IPAIR - 1
+*     DO 885 I = I1,I1+1
+*     IF (TEV0(I).GT.TIME) THEN
+*     WRITE (6,886) I, KSTAR(I), NAME(I), TIME, TEV0(I), TEV(I)
+* 886 FORMAT (' WARN!   I K* NM T TE0 TE ',I5,I4,I6,1P,3E10.2)
+*     STOP
+*     END IF
+* 885 CONTINUE
+* 888 CONTINUE
 *
       RETURN
 *

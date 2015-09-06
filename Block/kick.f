@@ -5,7 +5,7 @@
 *       ---------------------------------------------------
 *
       INCLUDE 'common6.h'
-      PARAMETER (VFAC=2.0D0)
+      PARAMETER (VFAC=0.5D0)
       REAL*8  RAN2,VK(4)
       SAVE  IPAIR, KC, VDIS, RI
       DATA  IPAIR,KC /0,0/
@@ -16,21 +16,20 @@
       IF (ICASE.EQ.0) THEN
           IPAIR = I
           KC = KSTAR(N+IPAIR)
-*       Identify the correct component (KSTAR reversed in MDOT).
+*       Identify the correct component (KSTAR reversed in MDOT or EXPEL).
           I1 = 2*IPAIR - 1
-          IF (KSTAR(I1).LT.0) THEN
+          IF (KSTAR(I1).LE.0) THEN
               IN = I1
-          ELSE IF (KSTAR(I1+1).LT.0) THEN
+          ELSE IF (KSTAR(I1+1).LE.0) THEN
               IN = I1 + 1
           END IF
           KSTAR(IN) = -KSTAR(IN)
 *
 *       Determine disruption velocity after mass loss.
-          VD2 = 2.0*(BODY(N+IPAIR) - DM)/R(IPAIR)
+          VD2 = 2.0*BODY(N+IPAIR)/R(IPAIR)
           VDIS = SQRT(VD2)*VSTAR
 *       Set cluster escape velocity (add twice central potential).
-          VP2 = 2.0*BODY(N+IPAIR)/R(IPAIR)
-          VESC = SQRT(VP2 + 4.0)*VSTAR
+          VESC = SQRT(VD2 + 4.0)*VSTAR
           SEMI = -0.5*BODY(N+IPAIR)/H(IPAIR)
           ZM1 = BODY(I1)*SMU
           ZM2 = BODY(I1+1)*SMU
@@ -78,7 +77,7 @@
 *
 *       Include velocity dispersion in terms of VSTAR (Parameter statement!).
       IF (VFAC.GT.0.0D0) THEN
-          DISP = VFAC*VSTAR
+          DISP = VFAC*VSTAR  !  For zero kicks set VFAC = 0.001.
       END IF
 *
 *       Allow for optional type-dependent WD kick.
@@ -106,18 +105,17 @@
       VKICK = SQRT(VK(1)**2 + VK(2)**2 + VK(3)**2)
       VK(4) = VKICK
 *
-*       Limit kick velocity to VDIS+10*VSTAR/10*VST for binary/single stars.
+*       Adopt kick velocity of VDIS+3*VSTAR/10*VST for binary/single stars.
       IF (IPAIR.GT.0) THEN
-          VBF = SQRT(VDIS**2 + 100.0*VSTAR**2)
-          VKICK = MIN(VKICK,VBF)
+          VKICK = MAX(VKICK,VDIS+3.0*VSTAR)
+*       Note value of IPAIR may have changed in KSTERM (denotes KS binary).
       ELSE
-          VKICK = MIN(VKICK,10.0D0*VSTAR)
 *       Ensure escape of massless star.
           IF (BODY(I).EQ.0.0D0) VKICK = 10.0*VSTAR
       END IF
       VKICK = VKICK/VSTAR
-*       Skip WD case with KZ(25) = 0.
-      IF (VKICK.EQ.0.0D0) GO TO 30
+*       Skip WD case with KZ(25) = 0 (note VKICK > 0 also here).
+      IF (VKICK.EQ.0.0D0.OR.DISP.EQ.0.0D0) GO TO 30
 *
 *       Randomize the velocity components.
 *     A(4) = 0.0
@@ -131,8 +129,8 @@
       VF2 = 0.0
       DO 10 K = 1,3
           VI2 = VI2 + XDOT(K,I)**2
-*         XDOT(K,I) = XDOT(K,I) + VKICK*A(K)/SQRT(A(4))
-          XDOT(K,I) = XDOT(K,I) + VKICK*VK(K)/VK(4)
+*         XDOT(K,I) = XDOT(K,I) + VKICK*VK(K)/VK(4)
+          XDOT(K,I) = VKICK*VK(K)/VK(4)
           X0DOT(K,I) = XDOT(K,I)
           VF2 = VF2 + XDOT(K,I)**2
    10 CONTINUE
@@ -141,7 +139,7 @@
       ECDOT = ECDOT - 0.5*BODY(I)*(VF2 - VI2)
       NKICK = NKICK + 1
 *
-*       Replace final velocity by relative velocity for binary kick.
+*       Evaluate binary kick energy from relative velocity (for diagnostics).
       IF (IPAIR.GT.0) THEN
           JP = KVEC(I)
           J = I + 1
@@ -151,7 +149,12 @@
               VF2 = VF2 + (XDOT(K,I) - XDOT(K,J))**2
    15     CONTINUE
           HNEW = 0.5*VF2 - (BODY(I) + BODY(J))/RI
-          EB1 = BODY(I)*BODY(J)/(BODY(I) + BODY(J))*HNEW
+*       Exclude colliding WDs.
+          IF (BODY(I) + BODY(J).EQ.0.0D0) THEN
+              EB1 = 0.0
+          ELSE
+              EB1 = BODY(I)*BODY(J)/(BODY(I) + BODY(J))*HNEW
+          END IF
           IF (EB1.LT.0.0) THEN
               EKICK = EKICK - EB1
               EGRAV = EGRAV - EB1

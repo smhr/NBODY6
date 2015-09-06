@@ -1,11 +1,11 @@
-      SUBROUTINE ZARE(I1,I2,SP)
+      SUBROUTINE ZARE(I1,I2,JCL,SP)
 *
 *
 *       Zare stability parameter.
 *       -------------------------
 *
 *       Computes the stability parameter (SP) of a 3-body hierarchical
-*       binary system with inner binary (I1,I2) and outer body JCOMP.
+*       binary system with inner binary (I1,I2) and outer body JCL.
 *       The system is stable to exchange if SP > 1 is returned.
 *       Reference:- K. Zare, Celestial Mechanics 16, 35 (1977).
 *       Developed by Murray Alexander 1984.
@@ -17,13 +17,13 @@
       DATA  ERR/1.0D-6/
 *
 *
-*       Copy masses and global indices I1, I2 & JCOMP (set in IMPACT).
+*       Copy masses and global indices I1, I2 & JCL (set in IMPACT).
       M1 = BODY(I1)
       M2 = BODY(I2)
-      M3 = BODY(JCOMP)
+      M3 = BODY(JCL)
       INAME(1) = I1
       INAME(2) = I2
-      INAME(3) = JCOMP
+      INAME(3) = JCL
 *
 *       Transform to local centre of mass frame.
       DO 1 K = 1,3

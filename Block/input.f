@@ -44,18 +44,18 @@
 *
       GPRINT(1) = 0.0
       DELTAS = 0.0
-      IF (KZ(4).GT.0) THEN
+*     IF (KZ(4).GT.0) THEN
 *       Read parameters for binary evolution analysis.
-          K = KZ(4)
-          READ (5,*)  DELTAS, ORBITS(1), (GPRINT(J),J=1,K)
-          WRITE (6,40)  DELTAS, ORBITS(1), (GPRINT(J),J=1,K)
-   40     FORMAT (//,12X,'DELTAS =',F6.2,'  ORBITS(1) =',F6.2,
-     &                                            '  GPRINT(J) =',9F7.3)
+*         K = KZ(4)
+*         READ (5,*)  DELTAS, ORBITS(1), (GPRINT(J),J=1,K)
+*         WRITE (6,40)  DELTAS, ORBITS(1), (GPRINT(J),J=1,K)
+*  40     FORMAT (//,12X,'DELTAS =',F6.2,'  ORBITS(1) =',F6.2,
+*    &                                            '  GPRINT(J) =',9F7.3)
 *       Modify binary output factor by perturbation at different levels.
-          DO 50 L = 2,K
-              ORBITS(L) = ORBITS(1)*(GPRINT(1)/GPRINT(L))**0.3333
-   50     CONTINUE
-      END IF
+*         DO 50 L = 2,K
+*             ORBITS(L) = ORBITS(1)*(GPRINT(1)/GPRINT(L))**0.3333
+*  50     CONTINUE
+*     END IF
 *
 *       Set random number skip for routine DATA.
       IDUM1 = NRAND
@@ -69,8 +69,9 @@
       NBZERO = NNBMAX
       ZNBMIN = 0.2*FLOAT(NNBMAX)
       ZNBMAX = 0.9*FLOAT(NNBMAX)
-*       Save initial ETAI.
+*       Save initial ETAI and RMIN**2 (for PHICOR).
       ETA0 = ETAI
+      RMIN2 = RMIN**2
       RSMIN = RS0
       RC = RS0
 *       Temporary save of initial neighbour sphere for OUTPUT & NBLIST.

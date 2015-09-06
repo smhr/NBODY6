@@ -58,11 +58,6 @@
 *       Take half the value because of double counting.
       POT = 0.5*POT
 *
-*     POTS = POT
-*     CALL ENERGY
-*     WRITE (6,40)  POTS, (POT - POTS)/POT
-*  40 FORMAT (' POTENTIAL CHECK   POTS DP/P  ',F10.6,1P,E10.2)
-*     POT = POTS
 *       Sum the kinetic energy (include c.m. bodies but not components).
       ZKIN = 0.D00
       DO 50 I = IFIRST,NTOT
@@ -73,20 +68,20 @@
 *
 *       Obtain the tidal potential energy for linearized external field. 
       IF (KZ(14).EQ.0) THEN
-*       Note: ETIDE holds accumulated tidal energy if KZ(14) = 3.
-          ETIDE = 0.0D0
+*       Note: EPL holds accumulated tidal energy if KZ(14) = 3 or 4.
+          EPL = 0.0D0
       ELSE
 *       Employ general expression sum {m*r*F} for virial energy.
           CALL XTRNLV(1,N)
 *       Form tidal energy with Plummer potential (note ETIDE use for #14=3).
-          IF (KZ(14).EQ.4) THEN
-              ETIDE = 0.0
+          IF (KZ(14).EQ.3.OR.KZ(14).EQ.4) THEN
+              EPL = 0.0
               DO 60 I = 1,N
                   RI2 = AP2
                   DO 55 K = 1,3
                       RI2 = RI2 + X(K,I)**2
    55             CONTINUE
-                  ETIDE = ETIDE - BODY(I)*MP/SQRT(RI2)
+                  EPL = EPL - BODY(I)*MP/SQRT(RI2)
    60         CONTINUE
           END IF
       END IF
@@ -98,7 +93,7 @@
       END IF
 *
 *       Total energy = ZKIN - POT + ETIDE + EBIN + ESUB + EMERGE + ECOLL
-*                    + EMDOT.
+*                    + EMDOT + EPL.
 *
       RETURN
 *

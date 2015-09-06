@@ -9,12 +9,12 @@
       REAL*8  UI(4),RDOT(3),V(4),A1(3,4)
 *
 *
-*       Skip merged ghost binary (defined by zero total mass).
-      IF (BODY(N+J).LE.0.0D0) GO TO 40
-*
 *       Resolve components of pair #J at curent time.
       J2 = J + J
       J1 = J2 - 1
+*       Skip merged ghost binary (defined by zero total mass).
+      IF (BODY(N+J).LE.0.0D0) GO TO 40
+*
       A2 = 1.0/R(J)
       A3 = A2*(TIME - T0(J1))
       IF (KSLOW(J).GT.1) THEN

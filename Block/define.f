@@ -43,7 +43,7 @@
 *       GMIN    Relative two-body perturbation for unperturbed motion.
 *       GMAX    Secondary termination parameter for soft KS binaries.
 ***
-* INPUT: if (kz(4).gt.0)
+* INPUT: if (kz(4).gt.0) (suppressed)
 *
 *       DELTAS  Output interval for binary search (in TCR; suppressed).
 *       ORBITS  Minimum periods for binary output (level 1).
@@ -69,9 +69,8 @@
 *
 *        if (kz(5).eq.3)
 *
-*       APO     Separation between the perturber and Sun.
-*       ECC     Eccentricity of orbit (=1 for parabolic encounter).
-*       DMIN    Minimum distance of approach (pericentre).
+*       APO     Initial apocentre distance from the Sun (N-body units).
+*       ECC     Eccentricity of two-orbit (assumed < 0.90).
 *       SCALE   Perturber mass scale factor (=1 for Msun).
 *
 *        if (kz(5).eq.4)
@@ -96,7 +95,7 @@
 *
 *        if (kz(24).gt.0)
 *
-*       M, X, V Initial subsystem (unscaled; membership = KZ(24)).
+*       M, X, V Initial subsystem (solar masses; membership = KZ(24)).
 ***
 * XTRNL0: if (kz(14).eq.2)
 *
@@ -166,7 +165,11 @@
 *       CLM     Individual cloud masses in solar masses (maximum MCL).
 *       RCL2    Half-mass radii of clouds in pc (square is saved).
 ***
-* CHAIN: if (kz(11).gt.0 with ARchain)
+* BRAKE4: if (max(K*).ge.13.and.kz(11).ne.0)
+*
+*       CLIGHT  Velocity of light in N-body units (unless read by CHAIN).
+*
+* CHAIN:  if compiled with ARChain
 *
 *       CLIGHT  Velocity of light in N-body units (e.g. 3.0D+05/VSTAR).
 *       NBH     Number of BHs for special treatment (redundant but keep).
@@ -181,32 +184,39 @@
 *       1  COMMON save unit 1 (=1: 'touch STOP'; =2: every 100*NMAX steps).
 *       2  COMMON save unit 2 (=1: at output; =2: restart if DE/E > 5*QE).
 *       3  Basic data unit 3 at output time (unformatted, frequency NFIX;
-*             =1/2: standard /and tail; =3: tail only; >3: cluster + tail).
-*       4  Binary diagnostics on unit 4 (# threshold levels = KZ(4) < 10).
-*                                       (currently suppressed in ksint.f.)
+*             =1/2: standard and tail; =3: tail only; >3: cluster + tail).
+*       4  Binary diagnostics on unit 4 (# threshold levels = KZ(4) < 10);
+*                                       (suppressed in input.f & ksint.f).
 *       5  Initial conditions (#22 =0; =0: uniform & isotropic sphere);
 *                =1: Plummer; =2: two Plummer models in orbit, extra input;
 *                =3: massive perturber and planetesimal disk, extra input;
 *                =4: massive initial binary, extra input: A, E, M1, M2;
 *                =5: Jaffe model;
 *               >=6: Zhao BH cusp model, extra input if #24 < 0: ZMH, RCUT.
-*       6  Significant & regularized binaries at main output (=1, 2, 3 & 4).
-*       7  Lagrangian radii (>0: RSCALE; =2, 3, 4: output units 6, 7, 12);
+*       6  Soft & regularized binaries & individual bodies at main output;
+*                =1: soft & regularized binaries on unit 6;
+*                =2: regularized binaries only;
+*                >2: individual bodies (loop from 1 to KZ(6)).
+*       7  Lagrangian radii (>0: RSCALE; =2, 3, 4: output units 6, 7);
 *                >=2: half-mass radii of 50% mass, also 1% heavies, unit 6;
 *                >=2: Lagrangian radii for two mass groups on unit 31 & 32;
 *                >=2: geometric radii for three mass groups on unit 6;
 *                 =5: density, rms velocity & mean mass on unit 26, 27 & 36;
 *                 =6: pairwise values of mean mass and radii on unit 28.
-*       8  Primordial binaries (=1 & >=3; >0: BINOUT; >2: BINDAT; >3: HIDAT;
+*       8  Primordial binaries (=1 & >=3 routine BINPOP; >=3: SWEEP;
 *                               =4: Kroupa 1995 period distribution;
 *                               >4: standard setup using RANGE & SEMI0).
-*       9  Individual bodies on unit 6 at main output (MIN(5**KZ9,NTOT)).
+*       9  Binary output  (=1, 2, 3 in BINDAT):
+*                         =1: regularized binaries on OUT9;
+*                         >1: hierarchical systems on HIDAT (NMERGE > 0);
+*                         =2: regularized and soft binaries (unit #19);
+*                         =3: soft binaries only on #19.
 *      10  Diagnostic KS output (>0: begin KS; >1: end; >=3: each step).
 *      11  Algorithmic Chain regularization and post-Newtonian (NBODY7).
-*              non-zero: PN for unpert KS or re-init ARchain (ksint.f);
+*              non-zero: PN for unpert KS or re-init ARChain (ksint.f);
 *              > 0: addition of initial BHs (binary/singles; scale.f);
-*              = -1: standard case of subsystem for ARchain (ksint.f);
-*              < -1: ARchain restricted to BH binary components (ksint.f).
+*              = -1: standard case of subsystem for ARChain (ksint.f);
+*              < -1: ARChain restricted to BH binary components (ksint.f).
 *      12  HR diagnostics of evolving stars (> 0; interval DTPLOT);
 *               =2: input of stellar parameters on fort.12 (routine INSTAR).
 *      13  Interstellar clouds (=1: constant velocity; >1: Gaussian).
@@ -214,16 +224,17 @@
 *              =3: point-mass + bulge + disk + halo + Plummer; =4: Plummer).
 *      15  Triple, quad, chain (#30 > 0) or merger search (>1: more output).
 *      16  Updating of regularization parameters (>0: RMIN, DTMIN & ECLOSE);
-*                  >1: RMIN expression based on core radius (experimental);
+*                  >1: RMIN expression based on core radius;
 *                  >2: modify RMIN for GPERT > 0.05 or < 0.002 in chain.
 *      17  Modification of ETAI, ETAR (>=1) and ETAU (>1) by tolerance QE.
 *      18  Hierarchical systems (=1: diagnostics; =2: primordial; =3: both).
 *      19  Mass loss (=1: old supernova scheme; =3: Eggleton, Tout & Hurley;
 *                                               >3: extra diagnostics).
 *      20  Initial mass function (=0: Salpeter type using ALPHAS; =1: Scalo;
-*              =2, 4, 6: Kroupa; =3, 5: Eggleton; > 1: primordial binaries;
-*              =7: binary correlated m1/m2 also for brown dwarf IMF;
+*              =2, 4: Kroupa 1993; =3, 5: Eggleton; > 1: primordial binaries;
+*              =6, 7: Kroupa 2001; binary correlated m1/m2, also brown dwarfs.
 *              Note: Use PARAMETER (MAXM=1) for setting BODY(1) = BODY10).
+*              KGT93 (Kroupa, Gilmore & Tout 1993) not recommended.
 *      21  Extra output (>0: MODEL #, TCOMP, DMIN, AMIN; >1: NESC by JACOBI).
 *      22  Initial m, r, v on #10 (=1: output; >=2: input; >2: no scaling;
 *              =2: m, r, v on #10 in any units; scaled to standard units;
@@ -245,10 +256,10 @@
 *      29  Boundary reflection for hot system (suppressed).
 *      30  Multiple regularization (=1: all; >1: BEGIN/END; >2: each step);
 *                                =-1: CHAIN only; =-2: TRIPLE & QUAD only. 
-*      31  Centre of mass correction after energy check.
+*      31  Centre of mass correction after ADJUST (don't use with #23 = 0).
 *      32  Increase output intervals & SMAX based on single particle energy.
 *      33  Histograms at main output (>=1: STEP; =2: STEPR, NBHIST & BINARY).
-*      34  Roche-lobe overflow (=1: Roche & Synch; =2: Roche & BSE synch).
+*      34  Roche-lobe overflow (=1: ROCHE & SYNCH; =2: ROCHE & BSE synch).
 *      35  Time offset (global time from TTOT = TIME + TOFF; offset = 100).
 *      36  Step reduction for hierarchical systems (suppressed).
 *      37  Neighbour additions in CHECKL (>0: high-velocity; >1: all types).
@@ -261,11 +272,20 @@
 *                     >=2: fine-tuning at NNBMAX/5; =3: reduction of NNBMAX.
 *      41  Pre-mainsequence stellar evolution (only solar metallicity).
 *      42  Kozai diagnostics on fort.42 (=1: frequency 100 & EMAX > 0.99).
-*      43  Small velocity kick after GR coalescence (NBODY7 only).
+*      43  Small velocity kick after GR coalescence (=1, =3; NBODY7 only),
+*                         =2: BH accretion of disrupted star, KSTAR >= 10.
 *      44  Plotting file for main cluster parameters on fort.56 (OUTPUT).
-*      45  Free
-*      46  Free
-*      47  Post-Newtonian KS treatment (in development).
+*      45  Plotting file for BH (NAME = 1 or 2) on unit 45 (routine BHPLOT);
+*                      primordial BH defined by INSTAR; membership = KZ(24);
+*                          =1: plotting output for BH (one or two);
+*                          >1: BH in KS binary (NCH = 0, unit 45);
+*                          >2: KS & perturber diagnostics (E > 0.9, EX > 0.9);
+*                          >3: output for 2nd innermost BH orbit (unit #49).
+*      46  Reserved for data analysis project on NBODY6++.
+*      47  Reserved for data analysis project on NBODY6++.
+*      48  GPU initialization of neighbour lists and forces (FPOLY0).
+*      49  Post-Newtonian perturbations included in KS (dir Block).
+*      50  Not used.
 *       ---------------------------------------------------------------------
 *
 * NBODY6: Restart from fort.1
@@ -323,7 +343,7 @@
 *       NDISS   Tidal dissipations at pericentre (option 27).
 *       NTIDE   Tidal captures from hyperbolic motion (option 27).
 *       NSYNC   Number of synchronous binaries (option 27).
-*       NCOLL   Stellar collisions (option 27).
+*       NCOLL   Stellar collisions.
 *       NSESC   Escaped single particles (option 23).
 *       NBESC   Escaped binaries (option 23).
 *       NMESC   Escaped mergers (options 15 & 23).
@@ -335,6 +355,7 @@
 *       NSN     Neutron stars.
 *       NBH     Black holes.
 *       NBS     Blue stragglers.
+*       NTZ     Thorne-Zytkow objects.
 *       ---------------------------------------------------------------------
 *
 *
@@ -358,10 +379,21 @@
 *      13       Neutron star.
 *      14       Black hole.
 *      15       Massless supernova remnant.
-*      19       Circularizing binary (c.m. value).
-*      20       Circularized binary.
-*      21       First Roche stage (inactive).
-*      22       Second Roche stage.
+*       ---------------------------------------------------------------------
+*
+*       Binary types
+*       ************
+*
+*       ---------------------------------------------------------------------
+*       0       Standard case.
+*      -1       Chaotic (option 27 = 2).
+*      -2       Continuous circularizing (option 27 = 2).
+*       9       Sequential circularization (option 27 = 1).
+*      10       Circularized.
+*      11       First Roche stage (option 34 = 1/2).
+*      12       End of first Roche stage.
+*      13       Start of second Roche stage.
+*      xx       Further Roche stages.
 *       ---------------------------------------------------------------------
 *
       RETURN

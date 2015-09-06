@@ -21,10 +21,6 @@
       A = 100.0*A
       B = 100.0*B
 *
-*       Define GM in cgs units and length scale in pc.
-      GM = 6.67D-08*1.989D+33
-      PC = 3.0857D+18
-*
 *       Specify the tidal term in star cluster units (solar mass & pc).
       TIDAL(1) = 4.0*A*(A - B)*(PC/GM)
 *
@@ -44,7 +40,6 @@
 *
 *       Define time scale in seconds and velocity scale in km/sec.
       TSCALE = SQRT(PC/GM)*PC
-      VSTAR = 1.0E-05*SQRT(GM/PC)
 *
 *       Convert time scale from units of seconds to million years.
       TSCALE = TSCALE/(3.15D+07*1.0D+06)
@@ -55,7 +50,6 @@
    10 CONTINUE
       TIDAL(4) = TIDAL(4)*SQRT(RBAR**3/ZMBAR)
       TSCALE = TSCALE*SQRT(RBAR**3/(ZMASS*ZMBAR))
-      VSTAR = VSTAR*SQRT(ZMASS*ZMBAR/RBAR)
 *
 *       Perform an energy scaling iteration to include ETIDE (once is OK).
       E0 = -0.25
@@ -106,7 +100,7 @@
           TIDAL(4) = 2.0*OMEGA
           GMG = GMG/ZMTOT
 *
-*       Check re-scaling units to current RBAR (i.e. TSCALE, TSTAR & VSTAR).
+*       Check re-scaling units to current RBAR (i.e. TSTAR & VSTAR).
           IF (KZ(22).EQ.2) THEN
               CALL UNITS
           END IF
@@ -210,7 +204,7 @@
 *       Define the asymptotic circular velocity due to halo.
               V02 = VCIRC**2
 *
-*       Include table of circular velocity on unit #17 (km/sec & kpc).
+*       Include table of circular velocity on unit #51 (km/sec & kpc).
               RI = 1000.0/RBAR
               DR = 1000.0/RBAR
               DO 60 K = 1,30
@@ -219,11 +213,11 @@
                   VB2 = GMB/RI*(1.0 + AR/RI)**(GAM-3.0)
                   VCIRC2 = GMG/SQRT(RI2) + DISK*RI2/A2**1.5 +
      &                     V02*RI2/(RL2 + RI2) + VB2
-                  WRITE (17,50)  SQRT(VCIRC2)*VSTAR, RI*RBAR/1000.0
+                  WRITE (52,50)  SQRT(VCIRC2)*VSTAR, RI*RBAR/1000.0
    50             FORMAT (' CIRCULAR VELOCITY:    VC R ',F7.1,F7.2)
                   RI = RI + DR
    60         CONTINUE
-              CALL FLUSH(17)
+              CALL FLUSH(52)
 *
               A2 = R02 + (A + B)**2
               VB2 = GMB/SQRT(R02)*(1.0 + AR/SQRT(R02))**(GAM-3.0)
@@ -274,6 +268,7 @@
           MPDOT = 0.0
       END IF
       RTIDE0 = RTIDE
+      TSCALE = TSTAR
 *
 *       Define tidal radius in scaled units for linearized field.
       IF (KZ(14).LE.2) THEN

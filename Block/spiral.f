@@ -57,6 +57,22 @@
           IF (NAMEC(K).EQ.NAME(I)) IC = K
     2 CONTINUE
 *
+*       Try repair procedure if NCHAOS reduced to zero or NAMEC missing.
+      IF (NCHAOS.EQ.0.OR.IC.EQ.0) THEN
+          IC = 1
+          NCHAOS = NCHAOS + 1
+          SEMI = -0.5*BODY(I)/H(IPAIR)
+          ECC2 = (1.0-R(IPAIR)/SEMI)**2 + TDOT2(IPAIR)**2/(BODY(I)*SEMI)
+          ECC = SQRT(ECC2)
+*       Re-initialize basic elements and NAMEC.
+          ES(IC) = ECC
+          RP(IC) = SEMI*(1.0 - ECC)
+          NAMEC(IC) = NAME(I)
+          WRITE (6,4)  NAME(I1), NAME(I), LIST(1,I1), ECC, R(IPAIR)
+    4     FORMAT (' SPIRAL REPAIR    NM NMI NP E RP ',
+     &                               2I7,I4,F8.4,1P,E10.2)
+      END IF
+*
 *       Set non-zero index on call from CHRECT (KSTAR = -KSTAR) for CE skip.
       ISTAR = 0
       IF (KSTAR(I).GT.0) THEN
@@ -127,7 +143,7 @@
               W(K) = WG(1)
               Q(K) = QG(1)
 *       Note: rg2 should really be given by k2 in HRDIAG. 
-	      rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
+              rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
           ELSE
               QL = 1.0E+04
               IP = 3
@@ -137,9 +153,9 @@
               IF (KSTAR(IK).EQ.0) IP = 1
               W(K) = WW(IP)
               Q(K) = QQ(IP)
-	      rg2(k)= 0.21
+              rg2(k)= 0.21
               IF (KSTAR(IK).LE.2.OR.KSTAR(IK).EQ.7) rg2(k) = 0.1
-	      IF (KSTAR(IK).EQ.4) rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
+              IF (KSTAR(IK).EQ.4) rg2(k)= 0.1*(1.0 - CM(K,IC)/BODY(IK))
           END IF
           TL = TWOPI*RADIUS(IK)*SQRT(RADIUS(IK)/BODY(IK)/W(K))
           AT0(K) = 1.0/(QL*TL)
@@ -149,13 +165,13 @@
       IF (RADIUS(I1).GE.RADIUS(I2)) THEN
           M21 = BODY(I2)/BODY(I1)
           R21 = RADIUS(I2)/RADIUS(I1)
-	  RP1 = RP(IC)/RADIUS(I1)
-	  rad = radius(i1)
+          RP1 = RP(IC)/RADIUS(I1)
+          rad = radius(i1)
       ELSE
-	  M21 = BODY(I1)/BODY(I2)
+          M21 = BODY(I1)/BODY(I2)
           R21 = RADIUS(I1)/RADIUS(I2)
-	  RP1 = RP(IC)/RADIUS(I2)
-	  rad = radius(i2)
+          RP1 = RP(IC)/RADIUS(I2)
+          rad = radius(i2)
       END IF
 *
 *       Define initial angular momentum from the scaled semi-major axis.
@@ -223,7 +239,7 @@
       angmom0=(m21/(1+m21))*semi0**2*sqrt(1-es0**2)+rg2(1)*spin10+
      &         m21*r21**2*rg2(2)*spin20
 *
-*	Evaluate damping coefficients (Mardling & SJA, M.N. 321, 398, 2001).
+*       Evaluate damping coefficients (Mardling & SJA, M.N. 321, 398, 2001).
       cf = 54.0*twopi/5.0
       C1 = cf*(AT0(1)*(Q(1)/W(1))**2*(1.0 + M21)*M21)/semi0**8
       C2 = cf*(AT0(2)*(Q(2)/W(2))**2*((1.0 + M21)/M21**2)*R21**8)/
@@ -482,7 +498,9 @@
    99 CONTINUE   ! Fudge leads to SPIRAL TERM and ENFORCED ROCHE.
 *
 *       Enforce termination at constant angular momentum on Roche condition.
-      IF (DTR.LE.0.1/TSTAR) THEN
+      IF (DTR.LE.0.1/TSTAR.OR.
+     &   (STEP(I1).GT.100.0*TK.AND.KSTAR(J1).GE.5)) THEN
+*       Include also enforcement for AGB stars in unperturbed state.
           AF = SEMI*(1.0 - ECC**2)/(1.0 - ECCM**2)
           H(IPAIR) = -0.5*BODY(I)/AF
           ECOLL = ECOLL + ZMU*(HI - H(IPAIR))

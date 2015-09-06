@@ -53,9 +53,9 @@
       END IF
 *
 *       Resolve chain coordinates & velocities using the predicted c.m.
-      IF (IR.EQ.0.AND.I2.EQ.0) THEN
-          CALL XCPRED(0)
-      END IF
+*     IF (IR.EQ.0.AND.I2.EQ.0) THEN
+*         CALL XCPRED(0)
+*     END IF
 *
 *       Obtain contributions from all members of the chain.
       DO 20 J = 1,NCH

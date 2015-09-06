@@ -37,7 +37,7 @@
       IF (J.LT.IFIRST) THEN
           JCM = N + KVEC(J)
 *         STEPJ = STEP(JCM)
-          S = TIME - T0(JCM)
+*         S = TIME - T0(JCM)
 *
           DO 82 K = 1,3
               A(K) = X(K,J) - XI(K)

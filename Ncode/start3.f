@@ -189,7 +189,7 @@
 *       Place new coordinates in the original locations.
       DO 120 L = 1,3
           J = JLIST(L)
-*       Compare global name & subsystem name to restore the mass.
+*       Compare global name & subsystem name to restore the mass & T0.
           DO 112 K = 1,3
               IF (NAME(J).EQ.NAMES(K,ISUB)) THEN
                   BODY(J) = BODYS(K,ISUB)
@@ -200,6 +200,7 @@
           DO 115 K = 1,3
               X(K,J) = X3(K,LL) + CM(K)
   115     CONTINUE
+          T0(J) = TIME
   120 CONTINUE
 *
 *       Obtain potential energy of subsystem & perturbers at the end.

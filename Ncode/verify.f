@@ -49,6 +49,11 @@
           STOP
       END IF
 *
+      IF (KZ(14).GE.3.AND.KZ(23).EQ.0.AND.KZ(31).EQ.1) THEN
+          WRITE (6,60)
+   60     FORMAT (/,5X,'WARNING!   BAD COMBINATION; TRY KZ(31) = 0')
+      END IF
+*
       RETURN
 *
       END

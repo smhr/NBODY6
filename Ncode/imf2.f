@@ -14,30 +14,31 @@
       REAL*8 COPYX(3,NMAX),COPYV(3,NMAX)
       PARAMETER (MAXM=0)
 *
-*=========================  if KZ(20)=2:
+*=========================  
 * KTG3 MF with alpha1=1.3 :
       DATA  G1,G2,G3,G4  /0.19,1.55,0.050,0.6/
 * KTG3 MF with alpha1=1.1 :
 c      DATA  G1,G2,G3,G4  /0.28,1.14,0.010,0.1/
 *=========================
 *
-*
 *       Change PARAMETER to MAXM = 1 for taking BODY10 as massive star.
       BDYMAX = 0.0D0
-*
+
 *       Generate initial mass function (N-NBIN0 singles & 2*NBIN0 binaries).
       KDUM = IDUM1
       ZMASS = 0.0D0
       DO 10 I = 1,N+NBIN0
     5     XX = RAN2(KDUM)
 *
-*       Choose between Kroupa et al. (M.N. 262, 545) & Eggleton (Book).
+*       Set initial ZM to negative value
+          ZM = -1.0
+
+*       Choose between Kroupa et al (M.N. 262, 545, 1993) & Eggleton book.
           IF (KZ(20).EQ.2.OR.KZ(20).EQ.4) THEN
               ZM = 0.08 + (G1*XX**G2 + G3*XX**G4)/(1.0 - XX)**0.58
           ELSE IF (KZ(20).EQ.3.OR.KZ(20).EQ.5) THEN
               ZM = 0.3*XX/(1.0 - XX)**0.55
-*       Allow discrimination between correlated & uncorrelated binary masses.
-          ELSE IF (KZ(20).EQ.6.OR.KZ(20).EQ.7) THEN
+          ELSE IF (KZ(20).EQ.6.OR.KZ(20).EQ.7.OR.KZ(20).EQ.8) THEN
               LM = BODYN
               UM = BODY10
               ZM = IMFBD(XX,LM,UM)
@@ -49,10 +50,15 @@ c      DATA  G1,G2,G3,G4  /0.28,1.14,0.010,0.1/
           IF (ZM.GE.BODYN.AND.ZM.LE.BODY10) THEN
               BODY(I) = ZM
               ZMASS = ZMASS + BODY(I)
+          ELSE IF(ZM.LT.0) THEN
+*       Safe check
+             write(6,*) 'Error: mass not set in imf2.f!',
+     &            ' Please check option 20 (<=7)'
+              STOP
           ELSE
               GO TO 5
           END IF
-*
+
 *       Find index of most massive star (C.O. 20/12/10).
           IF (BODY(I).GT.BDYMAX) THEN
              BDYMAX = BODY(I)
@@ -66,7 +72,7 @@ c      DATA  G1,G2,G3,G4  /0.28,1.14,0.010,0.1/
           BODY(IMAXX) = BODY10
           ZMASS       = ZMASS + BODY(IMAXX)
       END IF
-*
+
 *       See whether to skip mass function for binaries.
       IF (NBIN0.EQ.0) GO TO 50
 *
@@ -86,23 +92,24 @@ c      DATA  G1,G2,G3,G4  /0.28,1.14,0.010,0.1/
 *       Save scaled binary masses in decreasing order for routine BINPOP.
       DO 30 I = 1,NBIN0
           JB = JLIST(NBIN0-I+1)
+*       Choose the Kouwenhoven distribution 0.6*(m2/m1)**{-0.4}, 2007.
+          IF(KZ(20).EQ.8) THEN
+   22        BODY0(2*I) = RAN2(KDUM)**(5.0/3.0)*BODY(2*JB-1)
+             IF (BODY0(2*I).LT.BODYN) GO TO 22
+             BODY0(2*I-1) = BODY(2*JB-1)/ZMASS
+             BODY0(2*I) = BODY0(2*I)/ZMASS
+             GO TO 25
+          END IF
           BODY0(2*I-1) = MAX(BODY(2*JB-1),BODY(2*JB))/ZMASS
           BODY0(2*I) = MIN(BODY(2*JB-1),BODY(2*JB))/ZMASS
-*( C.O. 15.11.07)
-*       Adopt correlation f(m1/m2) also for Brown Dwarf IMF (kz(20) = 7).
-*       Set up realistic primordial binary population according to
-*       a) Kouwenhoven et al. 2007, A&A, 474, 77
-*       b) Kobulnicky & Fryer 2007, ApJ, 670, 747
-          IF ((kz(20).eq.4).OR.
-     &        (kz(20).eq.5).OR.
-     &        (kz(20).eq.7)) THEN
+          IF ((KZ(20).GT.3.AND.KZ(20).LE.5).OR.KZ(20).EQ.7) THEN
 *       Adopt correlation (m1/m2)' = (m1/m2)**0.4 & constant sum (Eggleton).
               ZMB = BODY0(2*I-1) + BODY0(2*I)
               RATIO = BODY0(2*I-1)/BODY0(2*I)
               BODY0(2*I) = ZMB/(1.0 + RATIO**0.4)
               BODY0(2*I-1) = ZMB - BODY0(2*I)
           END IF
-          KSTAR(2*I-1) = KCM(2*JB-1)
+   25     KSTAR(2*I-1) = KCM(2*JB-1)
           KSTAR(2*I) = KCM(2*JB)
    30 CONTINUE
 *
@@ -131,19 +138,20 @@ c      DATA  G1,G2,G3,G4  /0.28,1.14,0.010,0.1/
               COPYX(K,NS) = X(K,NBIN0 + l)
               COPYV(K,NS) = XDOT(K,NBIN0 + l)
    55     CONTINUE
+*         JLIST(NS) = NBIN0 + L
           JLIST(NS) = NS
    60 CONTINUE
 *
 *       Sort masses of single stars in increasing order.
       CALL SORT1(NS,BCM,JLIST)
 *
-*       Copy masses of single stars to COMMON in decreasing order.
+*       Copy the masses of single stars to COMMON in decreasing order.
       ZMS = 0.0
       DO 70 I = 1,NS
           BODY(N-I+1) = BCM(I)
           ZMS = ZMS + BCM(I)
           KSTAR(N-I+1+NBIN0) = KCM(JLIST(I))
-*TEST> C.O. 20.12.2010
+*     TEST> C.O. 20.12.2010
 *       Recover the corresponding coordinates and velocities.
           J = JLIST(I)
           DO 65 K = 1,3
@@ -158,9 +166,6 @@ c      DATA  G1,G2,G3,G4  /0.28,1.14,0.010,0.1/
 *
 *       Replace input value by actual mean mass in solar units.
    90 ZMBAR = ZMASS/FLOAT(N)
-*
-*       Save random number sequence in IDUM1 for future use.
-      IDUM1 = KDUM
 *
       RETURN
 *

@@ -156,8 +156,8 @@
 *       Skip initialization for difficult hierarchy and small EMAX.
               IF (LIST(1,I1).EQ.1) THEN
                   ICIRC = -1
-                  JCOMP = LIST(2,I1)
-                  CALL INDUCE(IPAIR,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
+                  JCL = LIST(2,I1)
+                 CALL INDUCE(IPAIR,JCL,EMAX,EMIN,ICIRC,TC,ANGLE,TG,EDAV)
                   IF (EMAX.LT.0.9) THEN
                       NCHAOS = NCHAOS - 1
                       KSTAR(I) = 0
@@ -221,6 +221,9 @@
           DE2(1) = -0.001*EB*RAN2(IDUM)
           DE2(2) = -0.001*EB*RAN2(IDUM)
       END IF
+*
+*       Exit for circular orbit (possible mass loss problem).
+      IF (ECC.LE.0.002) GO TO 80
 *
 *       Evaluate time-scale for Kochanek-type damping (linear & non-linear).
       EOSC0(1) = EOSC(1,IC)**2 + EOSC(2,IC)**2

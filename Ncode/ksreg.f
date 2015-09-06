@@ -7,7 +7,15 @@
       INCLUDE 'common6.h'
       REAL*8  SAVE(15)
       EXTERNAL RENAME
+      COMMON/FSAVE/  SAVEIT(6)  
 *
+*
+*       Save updated regular force & derivative for new KSINIT procedure.
+      DTR = TIME - T0R(ICOMP)
+      DO K = 1,3
+          SAVEIT(K) = FR(K,ICOMP) + FRDOT(K,ICOMP)*DTR
+          SAVEIT(K+3) = D1R(K,ICOMP) + D2R(K,ICOMP)*DTR
+      END DO
 *
 *       Replace #JCOMP by arbitrary body in case it is the only neighbour.
       NNB = LIST(1,ICOMP)
@@ -152,9 +160,9 @@
       CALL KSINIT
 *
 *       Check optional binary analysis after merger or multiple collision.
-      IF (KZ(4).GT.0.AND.IPHASE.GT.3) THEN
-          CALL EVOLVE(NPAIRS,-1)
-      END IF
+*     IF (KZ(4).GT.0.AND.IPHASE.GT.3) THEN
+*         CALL EVOLVE(NPAIRS,-1)
+*     END IF
 *
 *       Check updating of global index for chain c.m.
       IF (NCH.GT.0) THEN

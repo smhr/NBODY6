@@ -349,6 +349,16 @@
       IF (I4.GT.0) BODY(I4) = B4
       BODY(ICH) = ZM
 *
+*       Restore the ghosts to neighbours of #ICH. (bug 13/5/14)
+      JLIST(1) = I1
+      JLIST(2) = I2
+      JLIST(3) = I3
+      NNB = LIST(1,ICH)
+      DO 86 L = 2,NNB+1
+          JPERT(L-1) = LIST(L,ICH)
+   86 CONTINUE
+      CALL NBREST(ICH,3,NNB)
+*
 *       Loop over all perturbers (choice of perturber or neighbour list).
       IF (DMSUN.LT.0.2) THEN
           NNB1 = LISTC(1) + 1

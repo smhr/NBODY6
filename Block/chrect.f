@@ -199,7 +199,7 @@
      &             RADIUS(I1),RADIUS(I2),W,ECRIT(IC),AR(IC),BR(IC),IDIS)
 *
           RCOLL = RADIUS(I1) + RADIUS(I2)
-	  IF (IDIS.EQ.-1.AND.KSTAR(I).EQ.-1) THEN
+          IF (IDIS.EQ.-1.AND.KSTAR(I).EQ.-1) THEN
               IOSC(IC) = 2
               WRITE (6,15)  TTOT, IPAIR, NAME(I1), NAME(I2), KSTAR(I1),
      &                      KSTAR(I2), RADIUS(I1), RADIUS(I2), QPERI,
@@ -207,16 +207,16 @@
    15         FORMAT (' CHAOS => SPIRAL    T KS NAM K* R* QP A E0 E ',
      &                               F9.2,I4,2I6,2I4,1P,4E10.2,0P,2F7.3)
 *       Activate spiral indicator and save time, pericentre & eccentricity.
-	      KSTAR(I) = -2
-	      TOSC(IC) = TIME
-	      RP(IC) = QPERI
-	      ES(IC) = ECC
+              KSTAR(I) = -2
+              TOSC(IC) = TIME
+              RP(IC) = QPERI
+              ES(IC) = ECC
               NSP = NSP + 1
               IF (KZ(8).GT.3) THEN
                   CALL BINEV(IPAIR)
               END IF
-	      GO TO 30
-	  END IF
+              GO TO 30
+          END IF
 *
 *       Combine the two stars inelastically in case of chaos disruption.
           IF (IDIS.GT.0.AND.QPERI.LT.RCOLL) THEN

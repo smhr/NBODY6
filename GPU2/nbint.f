@@ -48,7 +48,7 @@
               IF (EB.LT.EBH.AND.GI.LT.0.001.AND.JMIN.GE.IFIRST) THEN
                   APO = SEMI*(1.0 + ECC)
 *       Check eccentricity (cf. max perturbation) and neighbour radius.
-                  IF (ECC.LT.0.25.AND.APO.LT.0.02*RS(I)) THEN
+                  IF (ECC.LT.0.25.AND.APO.LT.5.0*RMIN) THEN
 *                     WRITE (6,3)  NAME(I), NAME(JMIN), ECC, SEMI, EB
 *   3                 FORMAT (' KS TRY:    NAM E A EB ',
 *    &                                     2I6,F7.3,1P,2E10.2)
@@ -70,7 +70,8 @@
               TRY = .FALSE.
               TCALL2 = TCALL2 + 0.01
               DTCL = 30.0*DTMIN
-              RCL = 12.0*RMIN
+*             RCL = 12.0*RMIN
+              RCL = 3.0*RMIN
               CALL SWEEP2(I,IKS,DTCL,RCL)
 *       Reduce TCALL2 after first IKS > 0 to allow second call.
               IF (IKS.GT.0) THEN
@@ -267,8 +268,9 @@
 *       Check option for external tidal field using predicted FREG.
    70 DT = TIME - T0(I)
       IF (KZ(14).GT.0) THEN
+          DTR = TIME - T0R(I)
           DO 75 K = 1,3
-              FREG(K) = FR(K,I) + FRDOT(K,I)*DT
+              FREG(K) = FR(K,I) + FRDOT(K,I)*DTR
    75     CONTINUE
           CALL XTRNLF(XI,XIDOT,FIRR,FREG,FD,FDUM,0)
       END IF
@@ -282,27 +284,24 @@
       T0(I) = TIME
 *
       DO 80 K = 1,3
-	  DF = FI(K,I) - FIRR(K)
-	  FID = FIDOT(K,I)
-	  SUM = FID + FD(K)
-	  AT3 = 2.0D0*DF + DT*SUM
-	  BT2 = -3.0D0*DF - DT*(SUM + FID)
+          DF = FI(K,I) - FIRR(K)
+          FID = FIDOT(K,I)
+          SUM = FID + FD(K)
+          AT3 = 2.0D0*DF + DT*SUM
+          BT2 = -3.0D0*DF - DT*(SUM + FID)
 *
-	  X0(K,I) = XI(K) + (0.6D0*AT3 + BT2)*DTSQ12
-	  X0DOT(K,I) = XIDOT(K) + (0.75D0*AT3 + BT2)*DT13
+          X0(K,I) = XI(K) + (0.6D0*AT3 + BT2)*DTSQ12
+          X0DOT(K,I) = XIDOT(K) + (0.75D0*AT3 + BT2)*DT13
 *
-*         X0(K,I) = X(K,I)
-*         X0DOT(K,I) = XDOT(K,I)
-*
-	  FI(K,I) = FIRR(K)
-	  FIDOT(K,I) = FD(K)
+          FI(K,I) = FIRR(K)
+          FIDOT(K,I) = FD(K)
 *       Use total force for irregular step (cf. Makino & Aarseth PASJ, 1992).
           FDUM(K) = FIRR(K) + FR(K,I)
 *
           D0(K,I) = FIRR(K)
           D1(K,I) = FD(K)
-	  D2(K,I) = (3.0D0*AT3 + BT2)*DT2
-	  D3(K,I) = AT3*DT6
+          D2(K,I) = (3.0D0*AT3 + BT2)*DT2
+          D3(K,I) = AT3*DT6
 *       NOTE: These are real derivatives!
    80 CONTINUE
 *

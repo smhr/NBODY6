@@ -49,8 +49,19 @@
               EOUT = ECC - DE
               PMIN = SEMI*(1.0 - EOUT)
           END IF
-          NST = NSTAB(SEMI0,SEMI,ECC0,EOUT,ANGLE,CM(1,IM),
-     &                                    CM(2,IM),BODY(I2))
+*       Restrict Mardling 2008 stability criterion to modest mass ratios.
+          Q1 = CM(1,IM)/CM(2,IM)
+          IF (Q1.GT.0.1.AND.Q1.LT.10.0) THEN
+              NST = NSTAB(SEMI0,SEMI,ECC0,EOUT,ANGLE,CM(1,IM),
+     &                                         CM(2,IM),BODY(I2))
+      IF (NST.GT.0) THEN
+      WRITE (6,66)  NAME(I1), SEMI0,SEMI,ECC0,EOUT,ANGLE,CM(1,IM)*SMU,
+     &              CM(2,IM)*SMU, BODY(I2)*SMU
+   66 FORMAT (' INSTAB  ',I6,1P,9E10.2)
+      END IF
+          ELSE
+              NST = 0
+          END IF
           IF (NST.EQ.0) THEN
               PCRIT = 0.98*PMIN
               PCR = stability(CM(1,IM),CM(2,IM),BODY(I2),

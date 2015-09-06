@@ -1,8 +1,7 @@
       SUBROUTINE EXPEL(J1,J2,ICASE)
 *
-*
-*       Common envelope stage of interacting stars.
-*       -------------------------------------------
+*       Common envelope stage of interacting stars & BH.
+*       ------------------------------------------------
 *
       INCLUDE 'common6.h'
       COMMON/MODES/  EB0(NTMAX),ZJ0(NTMAX),ECRIT(NTMAX),AR(NTMAX),
@@ -23,7 +22,14 @@
       ELSE
           I1 = J2
           I2 = J1
-      ENDIF
+      END IF
+*
+*       Switch to #I2 if #I1 is a BH (standard case not affected).
+      IF (KSTAR(I1).EQ.14) THEN
+          II = I1
+          I1 = I2
+          I2 = II
+      END IF
 *
 *       Update the stars to latest previous time.
       TEV1 = MAX(TEV0(I1),TEV0(I2))
@@ -54,6 +60,35 @@
       DM2 = 0.0
       EP2 = EPOCH(I2)
       AGE2 = AJ2
+      RP1 = R(IPAIR)
+      ISKIP = 0
+*
+*       Include special disruption treatment for BH + star (only #11 < 0).
+      IF (MAX(KSTAR(I1),KSTAR(I2)).EQ.14) THEN
+          DM1 = 0.1*BODY(I1)*ZMBAR
+*       Conserve total mass and specific energy (H = const here).
+          M1 = M1 - DM1
+          M2 = M2 + DM1
+          R1 = RADIUS(I1)*SU
+          R2 = RADIUS(I2)*SU
+          IF (TDOT2(IPAIR).LT.0.0D0) THEN
+              CALL KSPERI(IPAIR)
+              TIME = TBLOCK
+          END IF
+*       Transform to positive radial velocity and obtain global coordinates.
+          JPAIR = 0
+          CALL KSAPO(JPAIR)   ! note JPAIR = KSPAIR on return.
+*       Note zero argument which advances eccentric anomaly to R = SEMI.
+          T0(I1) = TBLOCK
+          WRITE (6,2)  R(IPAIR), TDOT2(IPAIR)
+    2     FORMAT (' KSAPO TRANSF    R TD2 ',1P,2E10.2)
+          CALL RESOLV(IPAIR,1)
+          COALS = .FALSE.
+          SEMI = SEMI0
+          ISKIP = 1
+*       Skip common envelope part for BH + star interaction.
+          GO TO 4
+      END IF
 *
 *       Perform common envelope evolution (note: SEP in SU).
     1 CALL COMENV(M01,M1,MC1,AJ1,JSPIN1,KW1,
@@ -88,8 +123,8 @@
 *       Skip small mass loss unless coalescence (May 2003).
       DMS = M1 + M2 - BODY(I)*SMU
       IF (ABS(DMS).LT.1.0D-10.AND..NOT.COALS) THEN
-*         WRITE (77,7)  TIME, ECC, DMS, SEMI0*SU-SEP
-*   7     FORMAT (' FAIL!    T ECC DMS DSEP ',F12.4,F8.4,1P,2E10.2)
+*         WRITE (77,3)  TIME, ECC, DMS, SEMI0*SU-SEP
+*   3     FORMAT (' FAIL!    T ECC DMS DSEP ',F12.4,F8.4,1P,2E10.2)
 *         CALL FLUSH(77)
           IPHASE = 0
           GO TO 60
@@ -106,12 +141,12 @@
       SEMI = SEP/SU
 *
 *       Set reduced mass & binding energy and update masses & time T0(J1).
-      ZMU0 = BODY(I1)*BODY(I2)/BODY(I)
+    4 ZMU0 = BODY(I1)*BODY(I2)/BODY(I)
       HI = H(IPAIR)
       BODY0(I1) = M01/ZMBAR
       BODY0(I2) = M02/ZMBAR
       T0(J1) = TIME
-*       Add current energy (final state: coalescence or close binary).
+*       Add current energy (final state: coalescence, binary or disruption).
       ECOLL = ECOLL + ZMU0*HI
       EGRAV = EGRAV + ZMU0*HI
 *
@@ -151,13 +186,18 @@
 *       Subtract final binding energy of surviving binary.
           ZMU = BODY(I1)*BODY(I2)/BODY(I)
           ECOLL = ECOLL - ZMU*H(IPAIR)
-          EGRAV = EGRAV - ZMU*H(IPAIR)
+*         EGRAV = EGRAV - ZMU*H(IPAIR)
 *
+          IF (ISKIP.EQ.0) THEN
 *       Set argument for new pericentre velocity (need to have H*A*(1-E)).
-          RX = R(IPAIR)/(1.0 - ECC)
+              RX = R(IPAIR)/(1.0 - ECC)
 *       Modify KS variables consistent with new eccentricity and energy H.
-          CALL EXPAND(IPAIR,RX)
-          CALL RESOLV(IPAIR,1)
+              CALL EXPAND(IPAIR,RX)
+              CALL RESOLV(IPAIR,1)
+          ELSE
+*       Fine-tune the variables (especially for hyperbolic pericentre).
+              CALL RESOLV(IPAIR,1)
+          END IF
 *
           IF (ECC0.LT.1.0) THEN
               WHICH1 = ' BINARY '
@@ -165,11 +205,23 @@
               WHICH1 = ' HYPERB '
               NHYPC = NHYPC + 1
           END IF
+          IF (ISKIP.GT.0)  THEN
+              WHICH1 = 'DISRUPT '
+              NDISR = NDISR + 1
+*       Restore mass of accreted star for diagnostics only (from 23/5/14).
+              M1 = 10.0*DM1
+              WRITE (24,6)  TIME+TOFF, NDISR, NAME(I1), KSTAR(I1),
+     &                      ECC, MIN(M1,M2), MAX(M1,M2), SEMI
+    6         FORMAT (' DISRUPT1    T NDISR NM K* E M1 M2 SEMI ',
+     &                              F8.1,I5,I7,I4,F10.6,2F6.1,1P,E10.2)
+              CALL FLUSH(24)
+          END IF
+*
           WRITE (6,10)  WHICH1, NAME(I1), NAME(I2), KSTAR(I1),KSTAR(I2),
      &                  KW1, KW2, M1, M2, DM*ZMBAR, ECC0, ECC, R1, R2,
-     &                  SEMI0*SU, SEMI*SU
-   10     FORMAT (A8,'CE    NAM K0* K* M1 M2 DM E0 E R1 R2 A0 A ',
-     &                      2I6,4I3,3F5.1,2F8.4,2F7.1,1P,E9.1,0P,F7.1)
+     &                  RP1, SEMI0*SU, SEMI*SU
+   10     FORMAT (A8,'CE    NAM K0* K* M1 M2 DM E0 E R1 R2 RP A0 A ',
+     &                      2I6,4I3,F5.1,F6.1,F5.1,2F10.6,2F7.1,1P3E9.1)
 *
 *       Check common envelope condition again after circularization (09/08).
           IF (ECC0.GT.0.001D0.AND.ECC.LE.0.001D0) THEN
@@ -184,6 +236,7 @@
     8                 FORMAT (' ENFORCED CE    RL*SEP ',1P,2E10.2)
                       ECC0 = ECC
                       SEMI0 = SEMI
+                      SEP = SEMI*SU
 *       Correct for mass loss in case of coalescence which ignores DM2.
                       IF (DM*SMU.LT.0.05) THEN
                           CALL FICORR(I,DM)
@@ -201,14 +254,14 @@
           KSTAR(I1) = KW1
           KSTAR(I2) = KW2
 *
-*       Obtain neighbour list for force corrections and polynomials.
-          NNB = LIST(1,I)
+*       Save perturber list for force corrections and polynomials.
+          NNB = LIST(1,I1)
           DO 11 L = 1,NNB+1
-              ILIST(L) = LIST(L,I)
+              ILIST(L) = LIST(L,I1)
    11     CONTINUE
 *
 *       Ensure rare case of massless remnant will escape at next output.
-         IF (KW1.EQ.15.OR.KW2.EQ.15) THEN
+          IF (KW1.EQ.15.OR.KW2.EQ.15) THEN
             CALL KSTERM
             IPHASE = -1
             I = IFIRST
@@ -229,8 +282,9 @@
    12       CONTINUE
             WRITE (6,13)  NAME(I), KSTAR(I), BODY(I)*ZMBAR
    13       FORMAT (' MASSLESS GHOST    NAM K* M ',I6,I4,1P,E10.2)
+*
 *       Include special treatment for velocity kick of KS binary.
-          ELSE IF (KW1.GE.10) THEN
+          ELSE IF (KW1.GE.10.OR.ISKIP.GT.0) THEN
 *
               IF (ECC.LE.0.001D0) KSTAR(N+IPAIR) = 10
 *       Re-initialize the KS solution with new perturber list.
@@ -239,6 +293,10 @@
 *       Evaluate binary disruption velocity and introduce velocity kick.
               VI2 = XDOT(1,I)**2 + XDOT(2,I)**2 + XDOT(3,I)**2
               KSTAR(I1) = -KSTAR(I1)
+              IF (ISKIP.GT.0) THEN
+*       Ensure binary velocity kick by setting BH index (not saved).
+                  KW1 = 14
+              END IF
               CALL KICK(IPAIR,0,KW1,DM)
 *
 *       Include potential and kinetic energy corrections due to mass loss.
@@ -281,8 +339,21 @@
    30         CONTINUE
               TPREV = TIME - STEPX
 *
+*       Include safety condition to avoid ejection of BH.
+              IF (BODY(I1).GT.0.5*BODY(I)) THEN
+                  IF (I1.EQ.2*IPAIR-1) THEN
+                      I1 = 2*IPAIR
+                  ELSE
+                      I1 = 2*IPAIR - 1
+                  END IF
+              END IF
 *       Terminate KS binary and assign kick velocity to single star #I.
               I = I1 + 2*(NPAIRS - IPAIR)
+              IF (BODY(I1).GT.0.5*BODY(N+IPAIR)) THEN
+                  WRITE (6,32)  NAME(I1), BODY(I1)*SMU
+   32             FORMAT (' DANGER EXPEL!    NM M ',I7,F7.2)
+                  STOP
+              END IF
               CALL KSTERM
               CALL KICK(I,1,KW1,DM)
 *       Initialize new KS polynomials after velocity kick (H > 0 is OK).
@@ -291,12 +362,16 @@
               CALL KSREG
               IPHASE = -1
 *
+*       Avoid negative radial velocity for same star (TD2 is small).
+              IF (ISKIP.GT.0.AND.TDOT2(NPAIRS).LT.0.0) THEN
+                  IF (ECC.GT.1.0) TDOT2(NPAIRS) = 0.0
+              END IF
 *       Provide diagnostic output if binary survives the kick.
               I = NTOT
               KSTAR(I) = 0
-              IF (H(IPAIR).LT.0.0) THEN
-                  SEMI = -0.5d0*BODY(I)/H(IPAIR)
-                  WRITE (6,35)  KW1, R(IPAIR)/SEMI, SEMI*SU,
+              IF (H(NPAIRS).LT.0.0) THEN
+                  SEMI = -0.5d0*BODY(I)/H(NPAIRS)
+                  WRITE (6,35)  KW1, R(NPAIRS)/SEMI, SEMI*SU,
      &                          BODY(I)*ZMBAR, (XDOT(K,I)*VSTAR,K=1,3)
    35             FORMAT (' WD/NS BINARY    KW R/A A M V ',
      &                                      I4,3F7.2,3F7.1)
@@ -399,14 +474,14 @@
    55 CONTINUE
       NCH1 = NCHAOS
 *       Perform removal of NAMEC on failed search.
-      IF (KK.EQ.0) THEN
+      IF (KK.EQ.0.AND.KSTAR(N+IPAIR).LT.0) THEN
           II = -L
           CALL SPIRAL(II)
       END IF
       IC = IC + 1
 *       Consider the same location again after array update.
       IF (NCHAOS.LT.NCH1) L = L - 1
-      IF (IC.LT.100.AND.NCHAOS.GT.1) GO TO 52
+      IF (IC.LT.NCHAOS+1) GO TO 52
 *
 *       Reverse case indicator for exit from collision routine.
    60 ICASE = -ICASE

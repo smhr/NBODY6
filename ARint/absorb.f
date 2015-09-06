@@ -33,7 +33,7 @@
 ***   T0S(ISUB) = TIME - TIMEC  !looks dangerous!!!
 *
       IF (KZ(30).GT.2) THEN
-          WRITE (3,1)  TIME0+TOFF, TIME+TOFF, TBLOCK
+          WRITE (6,1)  TIME0+TOFF, TIME+TOFF, TBLOCK
     1     FORMAT (' ABSORB:   TIME0 TIME TBLOCK ',3F10.6)
       END IF
 *
@@ -162,7 +162,7 @@
       ENERGY = ENERGY + DKE - DPOT + DECM
 *     DE = DKE - DPOT
 *     CALL CONST(XCH,VCH,M,NCH,ENER1,G0,ALAG)
-*     WRITE (3,72)  (ENERGY+EnerGR - ENER0), DE, DECM, DE+DECM
+*     WRITE (6,72)  (ENERGY+EnerGR - ENER0), DE, DECM, DE+DECM
 *  72 FORMAT (' ABS ERROR!   DE DEJ DEC DE+DEC  ',1P,4E16.6,2E10.2)
 *     WRITE (6,74)  (ENER1 - ENERGY)/ENER1
 *  74 FORMAT (' CHECK ABS   DE/E  ',1P,E10.2)
@@ -225,7 +225,7 @@
 *
 *     WRITE (6,99)  (CM(K),K=1,6)
 *  99 FORMAT (' ABSORB:   CM ',1P,6E9.1)
-*     CALL FLUSH(3)
+*     CALL FLUSH(6)
 *
       RETURN
 *

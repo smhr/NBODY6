@@ -47,7 +47,7 @@
          WRITE (6,5)  e0,TAU,a,Eout,Aout,(UDOT(K),K=1,3)
     5    FORMAT (' DERIV   e0 TAU a E1 A1 edot  ',
      &                     F8.4,1P,2E10.2,0P,F8.4,1P,4E10.2)
-         CALL FLUSH(3)
+         CALL FLUSH(6)
          ICALL = ICALL + 1
       END IF
 

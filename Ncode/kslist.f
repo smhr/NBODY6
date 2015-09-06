@@ -44,6 +44,7 @@
      &   (R(IPAIR).LT.0.1*SEMI.OR.SEMI.LT.0)) THEN
           RAP = MIN(RMIN,0.1*ABS(SEMI))
       END IF
+      IF (SEMI.LT.0.0) RAP = MAX(RAP,10.0*RMIN)
 *
       RCRIT2 = 2.0*RAP**2/BODY(I)
       RCRIT3 = RCRIT2*RAP/GMIN

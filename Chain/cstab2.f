@@ -120,9 +120,9 @@
      &                              2I6,F7.3,1P,3E10.2)
           RI = SQRT(CM(1)**2 + CM(2)**2 + CM(3)**2)
           EMAX = 0.0
-          WRITE (81,30)  TIMEC, RI, NAMEC(I3), QL, Q1, ECC, ECC1,
+          WRITE (81,30)  TIMEC, RI, NAMEC(I3), ECC, ECC1,
      &                   SEMI, SEMI1, PCRIT/PMIN, 180.*ALPHA/3.14, EMAX
-   30     FORMAT (F9.5,F5.1,I6,2F6.2,2F6.3,1P,2E10.2,0P,F5.2,F6.1,F6.3)
+   30     FORMAT (F9.5,F5.1,I6,2F6.3,1P,2E10.2,0P,F5.2,F6.1,F6.3)
           CALL FLUSH(81)
       END IF
 *

@@ -70,6 +70,7 @@
           RCRIT2 = 4.0*RCRIT2
           ITER = ITER + 1
           IF (ITER.LT.10) GO TO 5
+          GO TO 100
       END IF
 *
       RDOT = (X(1,I) - X(1,JCL))*(XDOT(1,I) - XDOT(1,JCL)) +
@@ -297,10 +298,10 @@
      &                  BODY(I), BODY(JCL), PERT4, RIJ, PMIN,
      &                  EB1/EB, LIST(1,I1)
    20     FORMAT (/,' NEW',A8,I4,'  T =',F8.2,'  H =',F6.0,
-     &              '  R =',1P,E8.1,'  M =',0P,2F7.4,'  G4 =',1P,E8.1,
+     &              '  R =',1P,E8.1,'  M =',2E8.1,'  G4 =',E8.1,
      &              '  R1 =',E8.1,'  P =',E8.1,'  E1 =',0P,F6.3,
      &              '  NP =',I2)
-          CALL FLUSH(3)
+          CALL FLUSH(6)
       END IF
 *
 *       Include any close single or c.m. perturber (cf. routine SETSYS).
@@ -437,7 +438,7 @@
               IF (NAM1.EQ.LISTQ(L)) K = K + 1
    32     CONTINUE
 *       Generate diagnostics of first five outer orbits every half period.
-          IF (K.LE.5.AND.TIME.GT.QCHECK.AND.KZ(37).GT.0) THEN
+          IF (K.LE.5.AND.TIME.GT.QCHECK.AND.KZ(15).GE.3) THEN
               ZMB = BODY(I) + BODY(JCL)
               RI = SQRT(RI2)
               TK = SEMI1*SQRT(SEMI1/ZMB)
@@ -689,11 +690,18 @@
               END IF
 *       Allow extra tolerance after 1000 tries (suppressed 9/3/12).
 *             IF (NMTRY.GE.1000) DE = MIN(1.0D0 - EOUT,0.02D0)
-              EOUT = EOUT - DE
+              EOUT = MIN(EOUT - DE,0.9999D0)
               PMIN = SEMI1*(1.0 - EOUT)
           END IF
-          NST = NSTAB(SEMI,SEMI1,ECC,EOUT,ANGLE,BODY(I1),BODY(I2),BJ)
+*       Restrict Mardling 2008 stability criterion to modest mass ratios.
+          Q1 = BODY(I1)/BODY(I2)
+          IF (Q1.GT.0.1.AND.Q1.LT.10.0) THEN
+             NST = NSTAB(SEMI,SEMI1,ECC,EOUT,ANGLE,BODY(I1),BODY(I2),BJ)
+          ELSE
+             NST = 0
+          END IF
           IF (NST.EQ.0) THEN
+*       Employ Mardling & Aarseth 1999 stability test outside the mass range.
               PCRIT = 0.98*PMIN*(1.0 - PERT)
               PCR = stability(BODY(I1),BODY(I2),BODY(JCL),ECC,EOUT,
      &                                                          ANGLE)
@@ -740,8 +748,10 @@
 *
 *       Determine time-scale for stability (absolute or approximate).
       PM1 = PMIN*(1.0 - 2.0*PERT)
-      CALL TSTAB(I,ECC1,SEMI1,PM1,YFAC,ITERM)
+      PCRIT1 = PCRIT
+      CALL TSTAB(I,ECC1,SEMI1,PM1,PCRIT1,YFAC,JCL,ITERM)
       IF (ITERM.GT.0) GO TO 100
+      PCRIT = PCRIT1
 *
 *       Check perturbed stability condition.
       IF (PMIN*(1.0 - PERT).LT.YFAC*PCRIT) GO TO 100

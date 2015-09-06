@@ -1,4 +1,4 @@
-      SUBROUTINE CHTERM2(NBHB,DEGR)
+      SUBROUTINE CHTERM2(NBH2)
 *
 *
 *       Termination of two-body ARC.
@@ -17,6 +17,8 @@
       COMMON/BINARY/  ZZ(4,MMAX),XREL(3,MMAX),VREL(3,MMAX),
      &                HM(MMAX),UM(4,MMAX),UMDOT(4,MMAX),TMDIS(MMAX),
      &                NAMEM(MMAX),NAMEG(MMAX),KSTARM(MMAX),IFLAG(MMAX)
+      COMMON/CLUMP/   BODYS(NCMAX,5),T0S(5),TS(5),STEPS(5),RMAXS(5),
+     &                NAMES(NCMAX,5),ISYS(5)
       COMMON/CHREG/  TIMEC,TMAX,RMAXC,CM(10),NAMEC(NMX),NSTEP1,KZ27,KZ30
       COMMON/INCOND/  X4(3,NMX),XDOT4(3,NMX)
       COMMON/ECHAIN/  ECH
@@ -28,18 +30,19 @@
       JLIST(6) = NAMEC(I1)
       JLIST(7) = NAMEC(I2)
       NAME(ICH) = NAME0
-      ICM = 0
       TIME = TBLOCK
 *
 *       Identify c.m. body and find global indices.
+      ICM = 0
       DO 10 J = IFIRST,N
-          DO 5 L = 1,NCH
+          DO 5 L = 1,NN
               IF (NAME(J).EQ.JLIST(L+5)) THEN
                   JLIST(L) = J
                   IF (BODY(J).GT.0.0D0) ICM = J
               END IF
     5     CONTINUE
    10 CONTINUE
+      IF (ICM.EQ.0) ICM = ICH
 *
 *       Ensure ICOMP < JCOMP for KS regularization.
       ICOMP = MIN(JLIST(1),JLIST(2))
@@ -47,7 +50,7 @@
 *
 *       Copy final coordinates & velocities to standard variables.
       LK = 0
-      DO 20 L = 1,NCH
+      DO 20 L = 1,NN     ! Note NCH may be zero after INFALL.
           DO 15 K = 1,3
               LK = LK + 1
               X4(K,L) = XCH(LK)
@@ -59,40 +62,64 @@
 *     CALL XVPRED(ICM,-1)
 *
 *       Copy c.m. coordinates & velocities.
-      DO 30 K = 1,3
+      DO 25 K = 1,3
           CM(K) = X(K,ICM)
           CM(K+3) = XDOT(K,ICM)
-   30 CONTINUE
+   25 CONTINUE
 *
 *       Set configuration pointers for KS candidates.
       JLIST(7) = I1
       JLIST(8) = I2
 *
 *       Place new global coordinates in the original locations.
-      DO 40 L = 1,NCH
+      DO 30 L = 1,NN
           J = JLIST(L)
 *       Copy the respective masses (BODY(ICM) holds the sum).
           IF (L.EQ.1) BODY(J) = BODYC(1)
           IF (L.EQ.2) BODY(J) = BODYC(2)
 *       Transform to global coordinates & velocities using c.m. values.
           LL = JLIST(L+6)
-          DO 35 K = 1,3
+          DO 28 K = 1,3
               X(K,J) = X4(K,LL) + CM(K)
               XDOT(K,J) = XDOT4(K,LL) + CM(K+3)
               X0(K,J) = X(K,J)
               X0DOT(K,J) = XDOT(K,J)
-   35     CONTINUE
-   40 CONTINUE
+   28     CONTINUE
+   30 CONTINUE
 *
 *       Ensure new neighbour list (may be zero for ICOMP).
       RS0 = RS(ICM)
       CALL NBLIST(ICOMP,RS0)
 *
+*       Save NAME of dominant perturbers for neighbour list check.
+      NAM1 = NAME(ICOMP)
+      NAM2 = NAME(JCOMP)
+*
 *       Perform KS regularization of dominant components.
       CALL KSREG
 *
+*       Search for missing dominant bodies in perturber list.
+      J1 = 2*NPAIRS - 1
+      NP = LIST(1,J1)
+      DO 40 L = 2,NP+1
+          J = LIST(L,J1)
+          NB1 = LIST(1,J) + 1
+          I0 = 0
+*       Check whether the former IC1 & IC2 are members.
+          DO 33 LL = 2,NB1
+              JJ = LIST(LL,J)
+              IF (NAME(JJ).EQ.NAM1.OR.NAME(JJ).EQ.NAM2) I0 = I0 + 1
+   33     CONTINUE
+*
+*       Add new c.m. at the end after failed search (NBREST not used).
+          IF (I0.EQ.0.AND.LIST(NB1,J).NE.NTOT) THEN
+              LIST(NB1+1,J) = NTOT
+              LIST(1,J) = LIST(1,J) + 1
+          END IF
+   40 CONTINUE
+*
 *       Include optional kick velocity of 3*VRMS km/s after GR coalescence.
-      IF (KZ(43).GT.0.AND.NBHB.EQ.2) THEN
+      IF (KZ(43).GT.0.AND.NBH2.EQ.2) THEN
           VI20 = 0.0
           DO 42 K = 1,3
               VI20 = VI20 + XDOT(K,NTOT)**2
@@ -113,26 +140,47 @@
           KSTAR(NTOT) = 14
       END IF
 *
-      ZMU = BODY(2*NPAIRS-1)*BODY(2*NPAIRS)/BODY(NTOT)
-      EBH = ZMU*H(NPAIRS)
-      WRITE (6,50)  NSTEP1, LIST(1,NTOT), EBH, ECH, H(NPAIRS),
-     &              R(NPAIRS), STEP(NTOT)
-   50 FORMAT (' TERMINATE ARC    # NNB EBH ECH H R STEP ',
-     &                             I10,I4,F11.6,1P,4E10.2)
+      IF (NSTEP1.GT.100.OR.NBH2.EQ.2) THEN
+          NP = LIST(1,2*NPAIRS-1)
+          ZMU = BODY(2*NPAIRS-1)*BODY(2*NPAIRS)/BODY(NTOT)
+          EB = ZMU*H(NPAIRS)
+          WRITE (6,46)  NSTEP1, NP, LIST(1,NTOT), EB, ECH, H(NPAIRS),
+     &                  R(NPAIRS), STEP(NTOT)
+   46     FORMAT (' TERMINATE ARC    # NP NNB EB ECH H R STEP ',
+     &                                 I7,2I4,1P,5E10.2)
+      END IF
+*
 *       Reduce subsystem counter and initialize membership & internal energy.
-      NSUB = NSUB - 1
+      NSUB = MAX(NSUB - 1,0)
       NCH = 0
       NN = 0
+      ECH = 0.0
+*       Note stellar collision energies are accumulated in ECOLL by DECORR.
       NSTEPC = NSTEPC + NSTEP1
 *
-*       Note stellar collisions energies are accumulated in ECOLL/DECORR.
-      ECH = 0.0
-*       Subtract accumulated energy loss to compensate for KS binding energy.
-      ECOLL = ECOLL - DEGR
+*       Find reference pointer for ARC (should have ISYS(L)=4).
+      ISUB = 1
+      DO 47 L = 1,NSUB+1
+          IF (ISYS(L).EQ.4) ISUB = L
+   47 CONTINUE
 *
-*       Set escape condition to zero mass BHs after termination/coalescence.
+*       Update subsystem pointer and relevant variables (ISUB <= NSUB).
+      DO 50 L = ISUB,NSUB
+          DO 48 K = 1,6
+              BODYS(K,L) = BODYS(K,L+1)
+              NAMES(K,L) = NAMES(K,L+1)
+   48     CONTINUE
+          T0S(L) = T0S(L+1)
+          TS(L) = TS(L+1)
+          STEPS(L) = STEPS(L+1)
+          RMAXS(L) = RMAXS(L+1)
+          ISYS(L) = ISYS(L+1)
+   50 CONTINUE
+*
+*       Set escape condition for ghost after termination/coalescence.
       DO 60 I = IFIRST,N
-          IF (KSTAR(I).EQ.14.AND.BODY(I).EQ.0.0D0) THEN
+          IF ((NAME(I).EQ.NAMEC(I1).AND.BODY(I).EQ.0.0D0).OR.
+     &        (NAME(I).EQ.NAMEC(I2).AND.BODY(I).EQ.0.0D0)) THEN
 *       Skip any ghosts associated with stable hierarchies.
               DO 52 L = 1,NMERGE
                   IF (NAME(I).EQ.NAMEG(L)) GO TO 60

@@ -1,0 +1,29 @@
+*
+*       Consider removal of distant member(s) (consistent with acceptance).
+      KCASE = 0
+      IF (N.EQ.2.AND.IPN.GE.2.AND.RX.GT.50.0*SEMI) GO TO 300
+      XFAC = 5.0
+      IF (GPERT.LT.1.0D-06) XFAC = 10.0
+      IF (NPERT.EQ.0.OR.GPERT.LT.1.0D-08) XFAC = 20.0
+      IF (IPN.GE.2) XFAC = 2.0*XFAC
+      SX = MIN(5.0*SEMI,RGRAV)
+      IF ((IPN.LE.1.AND.RX.GT.XFAC*SX.AND.GPERT.LT.1.0D-03).OR.
+     &    (GPERT.GT.1.0D-03.AND.RX.GT.2.0*SX).OR.
+     &    (IPN.GE.2.AND.RX.GT.XFAC*SX)) THEN
+          CALL CHMOD(ISUB,KCASE,IESC,JESC)    ! Controls decision-making.
+      END IF
+      IF ((N.EQ.2.AND.DW.LT.1.0D-03.AND.GPERT.LT.1.0D-07).OR.
+     &    (N.GT.2.AND.GPERT.GT.1.0)) THEN
+      WRITE (6,191)  NSTEP1, IPN, DW, GPERT
+  191 FORMAT (' QUIT CHAIN    # IPN DW GP  ',I6,I4,1P,2E10.2)
+          IPN = 1
+          GO TO  250 
+      END IF
+*       Decide between increased membership, escape removal or termination.
+      IF (KCASE.EQ.0.OR.ISUB.EQ.0) GO TO 400
+      IF (KCASE.EQ.1) THEN
+          IF (IESC.EQ.0) GO TO 30
+          ITERM = -1
+          GO TO 258
+      END IF
+*

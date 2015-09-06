@@ -1,4 +1,4 @@
-      SUBROUTINE INDUCE(IPAIR,EMAX,EMIN,ICIRC,TC2,ANGLE,TG,EDAV)
+      SUBROUTINE INDUCE(IPAIR,JCL,EMAX,EMIN,ICIRC,TC2,ANGLE,TG,EDAV)
 *
 *
 *       Induced eccentricity of hierarchical binary.
@@ -31,17 +31,17 @@
       VI2 = 0.d0
       RVI = 0.d0
       DO 5 K = 1,3
-          RIJ2 = RIJ2 + (X(K,I) - X(K,JCOMP))**2
-          VIJ2 = VIJ2 + (XDOT(K,I) - XDOT(K,JCOMP))**2
-          RDOT = RDOT + (X(K,I) - X(K,JCOMP))*(XDOT(K,I) -XDOT(K,JCOMP))
+          RIJ2 = RIJ2 + (X(K,I) - X(K,JCL))**2
+          VIJ2 = VIJ2 + (XDOT(K,I) - XDOT(K,JCL))**2
+          RDOT = RDOT + (X(K,I) - X(K,JCL))*(XDOT(K,I) -XDOT(K,JCL))
           K1 = K + 1
           IF (K1.GT.3) K1 = 1
           K2 = K1 + 1
           IF (K2.GT.3) K2 = 1
           A1(K) = (X(K1,I1) - X(K1,I2))*(XDOT(K2,I1) - XDOT(K2,I2))
      &          - (X(K2,I1) - X(K2,I2))*(XDOT(K1,I1) - XDOT(K1,I2))
-          A2(K) = (X(K1,JCOMP) - X(K1,I))*(XDOT(K2,JCOMP) - XDOT(K2,I))
-     &          - (X(K2,JCOMP) - X(K2,I))*(XDOT(K1,JCOMP) - XDOT(K1,I))
+          A2(K) = (X(K1,JCL) - X(K1,I))*(XDOT(K2,JCL) - XDOT(K2,I))
+     &          - (X(K2,JCL) - X(K2,I))*(XDOT(K1,JCL) - XDOT(K1,I))
           A12 = A12 + A1(K)**2
           A22 = A22 + A2(K)**2
           A1A2 = A1A2 + A1(K)*A2(K)
@@ -55,7 +55,7 @@
 *
 *       Evaluate orbital parameters for outer orbit.
       RIJ = SQRT(RIJ2)
-      ZMB = BODY(I) + BODY(JCOMP)
+      ZMB = BODY(I) + BODY(JCL)
       SEMI1 = 2.d0/RIJ - VIJ2/ZMB
       SEMI1 = 1.d0/SEMI1
       ECC1 = SQRT((1.d0 - RIJ/SEMI1)**2 + RDOT**2/(SEMI1*ZMB))
@@ -137,7 +137,7 @@
       PMIN2 = SEMI*(1.d0 - EMAX)
       TK = TWOPI*SEMI*SQRT(SEMI/BODY(I))
       TK1 = TWOPI*SEMI1*SQRT(SEMI1/ZMB)
-      TG = TK1**2*ZMB*(1.d0 - ECC1**2)**1.5/(BODY(JCOMP)*TK)
+      TG = TK1**2*ZMB*(1.d0 - ECC1**2)**1.5/(BODY(JCL)*TK)
 *
       CONST = PFAC(A,Z)
       CONST = CONST*4.d0/(1.5d0*TWOPI*SQRT(6.d0))
@@ -145,7 +145,7 @@
       TG = CONST*TG*TSTAR
 *
 *       Form doubly averaged eccentricity derivative (Douglas Heggie 9/96).
-      YFAC = 15.d0*BODY(JCOMP)/(4.d0*ZMB)*TWOPI*TK/TK1**2
+      YFAC = 15.d0*BODY(JCL)/(4.d0*ZMB)*TWOPI*TK/TK1**2
       YFAC = YFAC*ECC*SQRT(1.d0 - ECC**2)/
      &                             (1.d0 - ECC1**2)**(1.5)
       EDAV = YFAC*AH*BH

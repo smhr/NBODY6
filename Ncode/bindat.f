@@ -15,6 +15,8 @@
       DATA  FIRST /.TRUE./
 *
 *
+*       Decide between regularized and/or soft binaries (#9 <= 2 for KS).
+      IF (KZ(9).GE.3.OR.NPAIRS.EQ.0) GO TO 50
 *       Form binding energy and central distance for each KS pair.
       ZMBIN = 0.0
       DO 10 JPAIR = 1,NPAIRS
@@ -88,7 +90,7 @@
           ECC(JPAIR) = SQRT(ECC2)
           EB(JPAIR) = MAX(EB(JPAIR),-9.99999)
           PB(JPAIR) = DAYS*SEMI*SQRT(ABS(SEMI)/BODYCM)
-          PB(JPAIR) = MIN(PB(JPAIR),99999.9)
+          PB(JPAIR) = MIN(PB(JPAIR),999999.9)
           IF (SEMI.LT.0.0) PB(JPAIR) = 0.0
 *       Obtain binding energy (per unit mass) of c.m. motion.
           VJ2 = XDOT(1,ICM)**2 + XDOT(2,ICM)**2 + XDOT(3,ICM)**2
@@ -150,7 +152,7 @@
       WRITE (9,40)  (AS(K),K=18,30)
    40 FORMAT (13F10.5)
 *
-      DO 50 JPAIR = 1,NPAIRS
+      DO 48 JPAIR = 1,NPAIRS
           J1 = 2*JPAIR - 1
           J2 = 2*JPAIR
           KCM = KSTAR(N+JPAIR)
@@ -160,10 +162,71 @@
           WRITE (9,45)  EB(JPAIR), ECC(JPAIR), ECM(JPAIR), RCM(JPAIR),
      &                  BODY(J1)*ZMBAR, BODY(J2)*ZMBAR, PB(JPAIR),
      &                  NAME(J1), NAME(J2), KSTAR(J1), KSTAR(J2), KCM
-   45     FORMAT (F8.5,F7.3,F7.2,F6.2,2F5.1,F8.1,2I6,3I4)
-   50 CONTINUE
+   45     FORMAT (F8.5,F7.3,F7.2,F6.2,2F5.1,F9.1,2I6,3I4)
+   48 CONTINUE
       CALL FLUSH(9)
 *
-      RETURN
+*       Include optional table of wide binaries on fort.19.
+   50 IF (KZ(9).EQ.1) GO TO 100
+      WRITE (19,55)  TIME+TOFF, (TIME+TOFF)*TSTAR, N
+   55 FORMAT(' WIDE PAIRS    T TPHYS N ',F9.1,F7.1,I8)
+*       Adopt a generous criterion for semi-major axis of wide binaries.
+      RB1 = 0.1*RSCALE
+      RB2 = RB1**2
+      NEWI = 0
+      DO 80 I = IFIRST,NTOT
+          NNB = LIST(1,I)
+          RCL2 = RB2
+          JMIN = I
+*       Determine the closest particle.
+          DO 65 L = 2,NNB+1
+              J = LIST(L,I)
+*       Include fast skips on each dimension to reduce the effort.
+              IF (ABS(X(1,I) - X(1,J)).GT.RB1) GO TO 65
+              IF (ABS(X(2,I) - X(2,J)).GT.RB1) GO TO 65
+              IF (ABS(X(3,I) - X(3,J)).GT.RB1) GO TO 65
+              RIJ2 = 0.0
+              DO 60 K = 1,3
+                  RIJ2 = RIJ2 + (X(K,I) - X(K,J))**2
+   60         CONTINUE
+              IF (RIJ2.LT.RCL2) THEN
+                  JMIN = J
+                  RCL2 = RIJ2
+              END IF
+   65     CONTINUE
+          IF (RCL2.GE.RB2) GO TO 80
+          VREL2 = 0.0
+          RDOT = 0.0
+          RI = 0.0
+          DO 70 K = 1,3
+              VREL2 = VREL2 + (XDOT(K,I) - XDOT(K,JMIN))**2
+              RDOT = RDOT + (X(K,I)-X(K,JMIN))*(XDOT(K,I)-XDOT(K,JMIN))
+              RI = RI + (X(K,I) - RDENS(K))**2
+   70     CONTINUE
+          RIJ = SQRT(RCL2)
+          ZMB = BODY(I) + BODY(JMIN)
+          SEMI = 2.0/RIJ - VREL2/ZMB
+          SEMI = 1.0/SEMI
+          IF (SEMI.GT.0.0.AND.SEMI.LT.RB1) THEN
+*       Exclude duplicates by examining current list of NEWI components.
+              DO 72 L = 1,NEWI
+                  IF (I.EQ.JLIST(L).OR.JMIN.EQ.JLIST(L)) GO TO 80
+   72         CONTINUE
+              JLIST(NEWI+1) = I
+              JLIST(NEWI+2) = JMIN
+              NEWI = NEWI + 2
+              ECC2 = (1.0 - RIJ/SEMI)**2 + RDOT**2/(ZMB*SEMI)
+              ECC1 = SQRT(ECC2)
+              TK = YRS*SEMI*SQRT(SEMI/ZMB)
+              RI = SQRT(RI)
+*       Print basic binary parameters (SEMI in AU, period in years).
+              WRITE (19,75)  ECC1, SEMI*RAU, TK, RI, ZMB*SMU, NAME(I),
+     &                       NAME(JMIN), KSTAR(I), KSTAR(JMIN)
+   75         FORMAT (F8.3,F9.1,1P,E9.1,0P,2F6.1,2I7,2I4)
+          END IF
+   80 CONTINUE
+      CALL FLUSH(19)
+*
+  100 RETURN
 *
       END

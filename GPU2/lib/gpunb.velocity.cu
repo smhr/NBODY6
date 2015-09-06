@@ -2,16 +2,22 @@
 #include <cmath>
 #include <cassert>
 #include <cstdlib>
-#include <cutil.h>
 #include <omp.h>
+#ifdef WITH_CUDA5
+#  include <helper_cuda.h>
+#  define CUDA_SAFE_CALL checkCudaErrors
+#else
+#  include <cutil.h>
+#endif
 #include "cuda_pointer.h"
 
 #define NTHREAD 64 // 64 or 128
-#define NJBLOCK 14 // for GTX 470
+// #define NJBLOCK 14 // for GTX 470
+#define NJBLOCK 28 // for GTX660Ti 
 #define NIBLOCK 32 // 16 or 32 
 #define NIMAX (NTHREAD * NIBLOCK) // 2048
 
-#define NXREDUCE 16 // must be >NJBLOCK
+#define NXREDUCE 32 // must be >NJBLOCK
 #define NYREDUCE  8
 
 #define NNB_PER_BLOCK 256 // NNB per block, must be power of 2
@@ -52,6 +58,18 @@ struct Jparticle{
 		NAN_CHECK(vj[0]);
 		NAN_CHECK(vj[1]);
 		NAN_CHECK(vj[2]);
+	}
+	__device__
+	Jparticle(const float4 *buf){
+		float4 tmp1 = buf[0];
+		float4 tmp2 = buf[1];
+		pos.x = tmp1.x;
+		pos.y = tmp1.y;
+		pos.z = tmp1.z;
+		mass  = tmp1.w;
+		vel.x = tmp2.x;
+		vel.y = tmp2.y;
+		vel.z = tmp2.z;
 	}
 };
 struct Iparticle{
@@ -104,6 +122,23 @@ struct Force{
 			nnb = -1;
 		}
 	}
+#if __CUDA_ARCH__ >= 300
+	__device__ void reduce_with(const int mask){
+		acc.x += __shfl_xor(acc.x, mask);
+		acc.y += __shfl_xor(acc.y, mask);
+		acc.z += __shfl_xor(acc.z, mask);
+		pot   += __shfl_xor(pot  , mask);
+		jrk.x += __shfl_xor(jrk.x, mask);
+		jrk.y += __shfl_xor(jrk.y, mask);
+		jrk.z += __shfl_xor(jrk.z, mask);
+		int ntmp = __shfl_xor(nnb, mask);
+		if(nnb>=0 && ntmp>=0){
+			nnb += ntmp;
+		}else{
+			nnb = -1;
+		}
+	}
+#endif
 };
 
 __device__ void dev_gravity(
@@ -130,10 +165,10 @@ __device__ void dev_gravity(
 #endif
 	float rv = dx*dvx + dy*dvy + dz*dvz;
 	float rinv1 = rsqrtf(r2);
-	if(min(r2, r2p)  < ip.h2){
-		// fo.neib[fo.nnb++ % NBMAX] = j;
-		nblist[fo.nnb & (NNB_PER_BLOCK-1)] = (uint16)jidx;
-		fo.nnb++;
+ 	if(min(r2, r2p)  < jp.mass * ip.h2){
+ 		// fo.neib[fo.nnb++ % NBMAX] = j;
+ 		nblist[fo.nnb & (NNB_PER_BLOCK-1)] = (uint16)jidx;
+ 		fo.nnb++;
 		rinv1 = 0.f;
 	}
 	float rinv2 = rinv1 * rinv1;
@@ -170,17 +205,38 @@ __global__ void gravity_kernel(
 	Force fo;
 	fo.clear();
 	uint16 *nblist = nbbuf[iaddr][jbid];
+#if __CUDA_ARCH__ >= 300 // just some trial
+	for(int j=jstart; j<jend; j+=32){
+		__shared__ Jparticle jpshare[32];
+		__syncthreads();
+		float4 *src = (float4 *)&jpbuf[j];
+		float4 *dst = (float4 *)jpshare;
+		dst[tid] = src[tid];
+		__syncthreads();
+		if(jend-j < 32){
+#pragma unroll 4
+			for(int jj=0; jj<jend-j; jj++){
+				const Jparticle jp = jpshare[jj];
+				// const Jparticle jp( (float4 *)jpshare + 2*jj);
+				dev_gravity(j-jstart+jj, ip, jp, fo, nblist);
+			}
+		}else{
+#pragma unroll 8
+			for(int jj=0; jj<32; jj++){
+				const Jparticle jp = jpshare[jj];
+				// const Jparticle jp( (float4 *)jpshare + 2*jj);
+				dev_gravity(j-jstart+jj, ip, jp, fo, nblist);
+			}
+		}
+	}
+#else
 	for(int j=jstart; j<jend; j+=NTHREAD){
 		__shared__ Jparticle jpshare[NTHREAD];
 		__syncthreads();
-#if 0
-		jpshare[tid] = jpbuf[j+tid];
-#else
 		float4 *src = (float4 *)&jpbuf[j];
 		float4 *dst = (float4 *)jpshare;
 		dst[        tid] = src[        tid];
 		dst[NTHREAD+tid] = src[NTHREAD+tid];
-#endif
 		__syncthreads();
 
 		if(jend-j < NTHREAD){
@@ -190,52 +246,56 @@ __global__ void gravity_kernel(
 				dev_gravity(j-jstart+jj, ip, jp, fo, nblist);
 			}
 		}else{
-#pragma unroll 4
+#pragma unroll 8
 			for(int jj=0; jj<NTHREAD; jj++){
 				Jparticle jp = jpshare[jj];
 				dev_gravity(j-jstart+jj, ip, jp, fo, nblist);
 			}
 		}
 	}
+#endif
 	if(fo.nnb > NNB_PER_BLOCK) fo.nnb = -1;
 	fobuf[iaddr][jbid] = fo;
 }
 
-#if 0
-__global__ void reduce_kernel_old(
-		const int     nbody,
-		const int     joff,
-		// here's partial forces and nblists,
-		const Force   fpart [][NJBLOCK],
-		const uint16  nbpart[][NJBLOCK][NNB_PER_BLOCK],
-		// and these to be redeced
-		Force         ftot    [],
-		int           nbtot   [][NNB_MAX]){
-	const int ibid = blockIdx.x;
-	int tid = threadIdx.x;
-	const int iaddr = tid + blockDim.x * ibid;
+#if __CUDA_ARCH__ >= 300
+__device__ void warp_reduce_int(int inp, int *out){
+	inp += __shfl_xor(inp, 1);
+	inp += __shfl_xor(inp, 2);
+	inp += __shfl_xor(inp, 4);
+	inp += __shfl_xor(inp, 8);
+# if NXREDUCE==32
+	inp += __shfl_xor(inp, 16);
+# endif
+	*out = inp;
+}
+__device__ void warp_reduce_float8(float4 inp1, float4 inp2, float *out){
+	const int tid = threadIdx.x;
+	float4 tmp4L = (4&tid) ? inp2 : inp1;
+	float4 tmp4R = (4&tid) ? inp1 : inp2;
+	tmp4L.x += __shfl_xor(tmp4R.x, 4);
+	tmp4L.y += __shfl_xor(tmp4R.y, 4);
+	tmp4L.z += __shfl_xor(tmp4R.z, 4);
+	tmp4L.w += __shfl_xor(tmp4R.w, 4);
+	float4 tmp4;
+	tmp4.x = (2&tid) ? tmp4L.z : tmp4L.x;
+	tmp4.y = (2&tid) ? tmp4L.w : tmp4L.y;
+	tmp4.z = (2&tid) ? tmp4L.x : tmp4L.z;
+	tmp4.w = (2&tid) ? tmp4L.y : tmp4L.w;
+	tmp4.x += __shfl_xor(tmp4.z, 2);
+	tmp4.y += __shfl_xor(tmp4.w, 2);
+	float2 tmp2;
+	tmp2.x = (1&tid) ? tmp4.y : tmp4.x;
+	tmp2.y = (1&tid) ? tmp4.x : tmp4.y;
+	tmp2.x += __shfl_xor(tmp2.y, 1);
 
-	Force fo;
-	fo.clear();
-	int *nbdst   = nbtot[iaddr];
-	bool oveflow = false;
-
-	for(int jb=0; jb<NJBLOCK; jb++){
-		const int jstart = (nbody * jb) / NJBLOCK;
-		const Force &fsrc = fpart[iaddr][jb];
-		fo += fsrc;
-		if(fsrc.nnb > NNB_PER_BLOCK) oveflow = true;
-		if(fo.nnb   > NNB_MAX      ) oveflow = true;
-		if(!oveflow){
-			const int klen = fsrc.nnb;
-			for(int k=0; k<klen; k++){
-				const int nbid = (joff + jstart) + int(nbpart[iaddr][jb][k]);
-				*nbdst++ = nbid;
-			}
-		}
+	tmp2.x += __shfl_xor(tmp2.x, 8);
+# if NXREDUCE==32
+	tmp2.x += __shfl_xor(tmp2.x, 16);
+# endif
+	if(tid < 8){
+		out[tid] = tmp2.x;
 	}
-	if(oveflow) fo.nnb = -1;
-	ftot[iaddr] = fo;
 }
 #endif
 
@@ -248,6 +308,33 @@ __global__ void force_reduce_kernel(
 	const int bid = blockIdx.x;
 	const int iaddr = yid + blockDim.y * bid;
 
+#if __CUDA_ARCH__ >= 300
+	Force f;
+	if(xid < NJBLOCK){
+		f = fpart[iaddr][xid];
+	}else{
+		f.clear();
+	}
+# if 0
+# pragma unroll
+	for(int mask=1; mask<NXREDUCE; mask*=2){
+		f.reduce_with(mask);
+	}
+	if(iaddr < ni && xid == 0){
+		ftot[iaddr] = f;
+	}
+# else
+	if(iaddr < ni){
+		const float4 tmp1 = make_float4(f.acc.x, f.acc.y, f.acc.z, f.pot);
+		const float4 tmp2 = make_float4(f.jrk.x, f.jrk.y, f.jrk.z, 0.0f);
+		const int    itmp = f.nnb;
+		float *dst  = (float *)(ftot + iaddr);
+		int   *idst = (int *)(dst + 7);
+		warp_reduce_float8(tmp1, tmp2, dst);
+		warp_reduce_int(itmp, idst);
+	}
+# endif
+#else
 	__shared__ Force fshare[NYREDUCE][NXREDUCE];
 	if(xid < NJBLOCK){
 		fshare[yid][xid] = fpart[iaddr][xid];
@@ -266,6 +353,7 @@ __global__ void force_reduce_kernel(
 	if(iaddr < ni){
 		ftot[iaddr] = fs[0];
 	}
+#endif
 }
 
 __global__ void gather_nb_kernel(
@@ -289,9 +377,19 @@ __global__ void gather_nb_kernel(
 	                                  : 0;
 
 	// now performe prefix sum
+#if __CUDA_ARCH__ >= 300
+	int ix = mynnb;
+#pragma unroll
+	for(int ioff=1; ioff<NXREDUCE; ioff*=2){
+		int iy = __shfl_up(ix, ioff);
+		if(xid>=ioff) ix += iy;
+	}
+	int iz = __shfl_up(ix, 1);
+	const int off = (xid == 0) ? 0 : iz;
+#else
 	__shared__ int ishare[NYREDUCE][NXREDUCE];
 	ishare[yid][xid] = mynnb;
-	int *ish = ishare[yid];
+	volatile int *ish = ishare[yid];
 	if(xid>=1)  ish[xid] += ish[xid-1];
 	if(xid>=2)  ish[xid] += ish[xid-2];
 	if(xid>=4)  ish[xid] += ish[xid-4];
@@ -299,9 +397,9 @@ __global__ void gather_nb_kernel(
 #if NXREDUCE==32
 	if(xid>=16)  ish[xid] += ish[xid-16];
 #endif
-
 	const int off = (xid == 0) ? 0 
 	                           : ish[xid-1];
+#endif
 	int *nbdst = nblist + nboff[iaddr] + off;
 
 	const int jstart = (nj * xid) / NJBLOCK;
@@ -482,11 +580,12 @@ void GPUNB_close(){
 	nbodymax = 0;
 
 #ifdef PROFILE
-	fprintf(stderr, "Closed NBODY6/GPU library\n");
 	fprintf(stderr, "***********************\n");
+	fprintf(stderr, "Closed NBODY6/GPU library\n");
 	fprintf(stderr, "time send   : %f sec\n", time_send);
 	fprintf(stderr, "time grav   : %f sec\n", time_grav);
 	fprintf(stderr, "time reduce : %f sec\n", time_reduce);
+	fprintf(stderr, "time regtot : %f sec\n", time_send + time_grav + time_reduce);
 	fprintf(stderr, "%f Gflops (gravity part only)\n", 60.e-9 * numInter / time_grav);
 	fprintf(stderr, "***********************\n");
 #endif

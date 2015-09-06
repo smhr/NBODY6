@@ -187,7 +187,10 @@
       CALL FCLOSE(I,NP)
 *
 *       Perform re-initialization of c.m. polynomials & perturber list.
-      CALL REINIT(ISUB)
+      IF (JESC.LE.0) THEN
+*       Note only one call needed for escaping binary (JESC > 0 first time).
+          CALL REINIT(ISUB)
+      END IF
 *
 *       Copy new chain coordinates & velocities to standard variables.
       LK = 0

@@ -1,4 +1,4 @@
-      SUBROUTINE CHTERM(NBHB)
+      SUBROUTINE CHTERM(NBH2)
 *
 *
 *       Termination of N = 1 AR_CHAIN (GR coalescence/disruption).
@@ -32,7 +32,7 @@
       END DO
 *
 *       Include optional kick velocity of 3*VRMS km/s for GR coalescence.
-      IF (KZ(43).GT.0.AND.NBHB.EQ.2) THEN
+      IF (KZ(43).GT.0.AND.NBH2.EQ.1) THEN
           VF = 3.0*(VRMS/VSTAR)/SQRT(VI20)
           DO 10 K = 1,3
               XDOT(K,ICM) = VF*XDOT(K,ICM)
@@ -53,10 +53,10 @@
       CALL FPOLY2(ICM,ICM,0)
 *
       WRITE (6,40)  LIST(1,ICM), STEP(ICM), STEPR(ICM), BODY(ICM)
-   40 FORMAT (' TERMINATE AR_CHAIN    NNB SI SR BCM ',I5,1P,3E10.2)
+   40 FORMAT (' TERMINATE ARC    NNB SI SR BCM ',I5,1P,3E10.2)
 *
 *       Reduce subsystem counter and initialize membership & internal energy.
-      NSUB = NSUB - 1
+      NSUB = MAX(NSUB - 1,0)
       NCH = 0
       NN = 0
       NSTEPC = NSTEPC + NSTEP1

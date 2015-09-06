@@ -88,7 +88,7 @@
      *    k=1,4),i=1,npairs),((fd0(k,i),k=1,4),i=1,npairs),tblist,dtb,
      *    (kblist(i),i=1,kmax),(kslow(i),i=1,npairs),(name(i),i=1,ntot)
 
-        write (J) ((list(k,i),k=1,list(1,i)+1),i=1,ntot)
+        write (J) ((list(k,i),k=1,list(1,i)+2),i=1,ntot)
 
         END FILE J
         CLOSE (UNIT=J)
@@ -142,7 +142,7 @@
      *    k=1,4),i=1,npairs),((fd0(k,i),k=1,4),i=1,npairs),tblist,dtb,
      *    (kblist(i),i=1,kmax),(kslow(i),i=1,npairs),(name(i),i=1,ntot)
 
-        read (J) (list(1,i),(list(k,i),k=2,list(1,i)+1),i=1,ntot)
+        read (J) (list(1,i),(list(k,i),k=2,list(1,i)+2),i=1,ntot)
         NTOT = NTSAVE
       END IF
 *

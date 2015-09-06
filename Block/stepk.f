@@ -23,8 +23,10 @@
           GO TO 1
       END IF
 *
-*       Increase by 2 until predicted step is exceeded (then correct level).
-    4 IF (DT1.LT.DT) THEN
+*       Include the case of quantized step (KS block-step version).
+    4 IF (DT1.EQ.DT) GO TO 10
+*       Increase by 2 until original step is exceeded (then restore level).
+      IF (DT1.LT.DT) THEN
           DT1 = 2.0D0*DT1
           K = K - 1
           GO TO 4

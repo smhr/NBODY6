@@ -4,7 +4,7 @@
 c        BETTER TO USE CM-coords & vels for XX & VX and CMXX CMVX
 c        FOR CM-position (needed in the Perturbations routine).
 c-----------------------------------------------------------------
-c        NOTE: some variables (eg. Energy and EnerGR are only in the
+c        NOTE: some variables (eg. Energy and EnerGR) are only in the
 c        common. The internal NB-energy = ENERGY+EnerGR  (should be)
 c        Energy= integrated E-value (excluding grav.radiation)
 c        EnerGr= Energy radiated away (grav.radiation if Clight.ne.0.0)
@@ -21,6 +21,7 @@ c        (1,0,0) =logH, (0,1,0)=TTL,(0,0,1)=DIFSY2 without t-tranformation
 c        cl=speed of light 
 c        NOTE: cl=0 => no relativistic terms !!!
 c        Ixc = 1 => exact time, =0 no exact time but return after CHTIME>DELTAT
+*        Note: EnerGR=0 in version of June/15.
 
          INCLUDE 'ARCCOM2e2.CH'
          COMMON/DerOfTime/GTIME
@@ -307,7 +308,8 @@ c--------------------------------------------------------------
         COMMON/DIAGNOSTICS/GAMMA,H,IWR
         save
 
-        Te=-ENERGY-EnerGR
+**      Te=-ENERGY-EnerGR
+        Te=-ENERGY
         if(cmethod(1).ne.0.0d0)then
         call EVALUATE V(V,WC)
         do I=1,N
@@ -354,8 +356,7 @@ c--------------------------------------------------------------
        end
 
         subroutine Velocity Dependent Perturbations
-     &  (Va,spina,acc,dcmv,df,dfGR,dspin)
-*    &  (dT,Va,spina,acc,dcmv,df,dfGR,dspin)
+     &  (dT,Va,spina,acc,dcmv,df,dfGR,dspin)
         INCLUDE 'ARCCOM2e2.CH'
         real*8 df(*),Va(*),dcmv(3),dfGR(*),dfR(nmx3),acc(nmx3)
         real*8 dspin(3),spina(3)
@@ -1240,8 +1241,11 @@ c       dw(k)=dw(k)/(1+(vij2/cl**2)**2)**.25d0 ! not so good
      &      (dX,dW,rij,rdotv,vij2,m(Ii),m(Jx),DF,dfGR,spina,dsp)
 *       Note m(Ii), m(Jx) changed from m(i), m(j) 18/6/10 (OK by Seppo).
         RS=2.d0*(m(i)+m(j))/CL**2
-        if(rij.lt.4.*RS.and.iwarning.lt.2)
-     &  write(6,*)' Near collision: r/RS',rij/RS,i,j,rij,RS ! diagno
+        if(rij.lt.4.*RS.and.iwarning.eq.1) then
+        WRITE (6,10)  r/RS, rij/RS, I, J, rij, RS
+   10   FORMAT (' CHAIN COLLISION    r/RS rij/RS I J rij RS ',
+     &                               2F6.2,2I4,1P,2E10.2)
+        end if
         if(rij.lt.4*RS)then!
         iwarning=iwarning+1
         icollision=1   ! collision indicator
@@ -1543,6 +1547,7 @@ c       mass=mass+M(I)
         real*8 FC(NMX3),XAUX(3),acc(nmx3)
         real*8 F(NMX3),!df(nmx3),dfGR(nmx3),
      &  GOM(nmx3)!,dcmv(3),Va(nmx3),afc(nmx3),dfE(3),dspin(3)
+      DATA IT /0/
         save
 
          call EVALUATE X 
@@ -1663,8 +1668,8 @@ C       Non-chained contribution
 c       add V-dependent perts.
         if(clight.gt.0.0)then
         call Velocity Dependent Perturbations
-     &  (V,spini,acc,dcmv,df,dfGR,dspin)
-        else
+     &  (dT,V,spini,acc,dcmv,df,dfGR,dspin)
+        ELSE
         do i=1,3*n
         df(i)=acc(i)
         end do
@@ -1683,21 +1688,23 @@ c       add V-dependent perts.
         do I=1,N
         I0=3*I-3
         do k=1,3
-        dfE(k)=df(i0+k)-dfGR(i0+k)!
+**      dfE(k)=df(i0+k)+dfGR(i0+k)!
+        dfE(k)=df(i0+k)
         end do
-        dotE=dotE+! NB-Energy change (without Grav. Rad.)
+        dotE=dotE+! NB-Energy change.
      &  M(I)*(V(I0+1)*dfE(1)+V(I0+2)*dfE(2)+V(I0+3)*dfE(3)) !
-        do k=1,3
-        dfE(k)=dfGR(I0+k)
+**      do k=1,3
+**      dfE(k)=dfGR(I0+k)
+**      end do
+**      dotEGR=dotEGR+ ! radiated energy 
+**   &  M(I)*(V(I0+1)*dfE(1)+V(I0+2)*dfE(2)+V(I0+3)*dfE(3))
         end do
-        dotEGR=dotEGR+ ! radiated energy 
-     &  M(I)*(V(I0+1)*dfE(1)+V(I0+2)*dfE(2)+V(I0+3)*dfE(3))
-        end do
+**      dotE=dotE+dotEGR
         ENERGYj=ENERGYj+dotE*dT
-        EnerGrj=EnerGRj+dotEGR*dT
+**      EnerGrj=EnerGRj+dotEGR*dT
         if(ind.eq.2)then
         ENERGYinc=ENERGYinc+dotE*dt
-        EnerGRinc=EnerGRinc+dotEGR*dT
+**      EnerGRinc=EnerGRinc+dotEGR*dT
         end if !ind.eq.2
         END IF ! IND=2        
         if(cmethod(2).ne.0.0d0)then
@@ -1771,9 +1778,9 @@ c       add V-dependent perts.
         dotE=dotE+M(I)*cdot(V(I1),acc(i1))   
         end do
         ENERGYj=ENERGYj+dotE*dT
-        EnerGrj=EnerGRj+dotEGR*dT
+**      EnerGrj=EnerGRj+dotEGR*dT
         ENERGYinc=ENERGYinc+dotE*dT
-        EnerGRinc=EnerGRinc+dotEGR*dT
+**      EnerGRinc=EnerGRinc+dotEGR*dT
         if(cmethod(2).ne.0.0d0)then
         dotW=0
         do I=1,N

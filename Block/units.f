@@ -7,18 +7,19 @@
       INCLUDE 'common6.h'
 *
 *
-*       Define GM & PC in cgs units and #AU in pc (2008 IAU values).
-      GM = 6.6743D-08*1.9884D+33
-      PC = 3.0856776D+18
-      AU = PC/1.4959787D+13  ! bug fix from D+12 4/7/11 (was OK in 2009).
+*       Define GM, AU and PC in cgs units (2009 IAU values).
+      GM = 1.327 124 420 99 D+26
+      AU = 1.49597870700 D+13
+      PC = 1296000.0D0/TWOPI*AU
 *
 *       Form scaling factors for binary periods A*SQRT(A/M) to yrs and days.
-      YRS = (RBAR*AU)**1.5/SQRT(ZMBAR)
-      DAYS = 365.24*YRS
+      YRS = (RBAR*1296000.0D0/TWOPI)**1.5/SQRT(ZMBAR)
+      DAYS = 365.25*YRS
 *
 *       Specify conversion factors for lengths to solar radii & AU.
-      SU = PC/(AU*6.955D+10)*RBAR*AU
-      RAU = RBAR*AU
+      RSUN = 6.960D+10
+      SU = PC/RSUN*RBAR
+      RAU = PC/AU*RBAR
 *
 *       Copy solar mass scaling to new variable (M = BODY*<M>).
       SMU = ZMBAR
@@ -28,7 +29,7 @@
       VSTAR = 1.0D-05*SQRT(GM/PC)
 *
 *       Convert time scale from units of seconds to million years.
-      TSTAR = TSTAR/(3.15D+07*1.0D+06)
+      TSTAR = TSTAR/(3.15576D+07*1.0D+06)
 *
 *       Ensure ZMBAR & RBAR > 0 (=0: assume <M>/Sun = 1, RBAR = 1 pc).
       IF (ZMBAR.LE.0.0D0) ZMBAR = FLOAT(N)/ZMASS
@@ -38,7 +39,7 @@
       TSTAR = TSTAR*SQRT(RBAR**3/(ZMASS*ZMBAR))
       VSTAR = VSTAR*SQRT(ZMASS*ZMBAR/RBAR)
 *
-*       Copy TSTAR to secondary time-scale factor.
+*       Copy TSTAR to secondary time-scale factor (just in case).
       TSCALE = TSTAR
 *
 *       Physical scaling: X, M, V, T from RBAR*X, ZMBAR*M, VSTAR*V, TSTAR*T.
