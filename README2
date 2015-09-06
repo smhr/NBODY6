@@ -1,0 +1,86 @@
+
+This file contains a template input for using GPU or SSE as
+well as notes about various GPU aspects.
+Please refer to guide.pdf for some explanation of compilation
+as well as extra options and don't forget to check the file
+params.h for suitable values of NMAX and LMAX before compiling.
+
+
+1 10000.0
+16000 1 20 120000 300 1
+0.02 0.02 0.15 2.0 10.0 3000.0 1.0D-04 2.0 0.6
+2 0 0 0 1 0 1 0 0 0
+0 0 0 1 1 1 0 0 3 4
+2 0 2 0 0 2 0 1 0 1
+0 1 2 2 1 0 0 2 0 3
+0 0 0 0 0 0 0 0 0 0
+2.0E-06 0.0001 0.2 1.0 1.0E-06 0.01
+2.3 5.0 0.2 0 0 0.02 0.0 100.0
+0.5 0.0 0.0 0.0 0.125
+---------------------------------
+
+NBODY6/GPU with multiple GPU support README file
+2009/3/6 Keigo Nitadori (email: keigo@riken.jp)
+
+Software requirement:
+ *CUDA 1.1 or later
+ *CUDA SDK: (only the file cutil.h is needed)
+ *GCC 4.x with OpenMP support and GFORTRAN:
+   Officially OpenMP is supported from GCC 4.2, however
+   GCC 4.1x of some Linux distribution (Fedora) supports it.
+
+Usage:
+ >cd Nbody6
+ >tar -zxvf gpu.tar.gz
+ >cd GPU
+ >cp Makefile_gpu ../Ncode/
+ >make gpu
+
+Modifications:
+ Some files should be modified to suite your environment.
+ Makefile:
+  CUDA_PATH, SDK_PATH, RUNDIR may be changed.
+ lib/gpunb.multi.cu:
+  NBMAX:
+   Number of maximum neighbours per block.
+   The default value is 16.
+   If you get too many massages
+   >gpunb overflow: x y z
+   you may increase it to 32, 64...
+   Both too large or too small number can cause a performance
+   decrease. It looks like NBMAX=64 is needed for N=100 K with
+   a single card (SJA).
+  NJBLOCK:
+   Indicates the number of multiprocessors of your GPU.
+   The default value 16 is for the G80/G92 architecture,
+   like 8800 GTX, 9800 GTX, or Tesla C870.
+   For the GT200 architecture, like GTX 280 or Tesla C1060,
+   Tesla S1070, this value should be changed to 30.
+  params.h:
+   This is a symbolic link to ../Ncode/params.h.
+   Once it has been modified, you need to remove all .o
+   files in the directories GPU and Ncode and recompile. 
+
+2009/3/15: The function wtime gives elapsed wall-clock time.
+   Usage: call wtime(ihour,imin,isec) with three integers.
+   The actual wall-cloks time is printed at end of ADJUST line.
+   Makefile_gpu should be used in dir Ncode unless updated.
+   Note that routine gpcorr.f has been renamed as gpucor.f.
+
+2009/4/9: A maximum time-step (SMAX) has been introduced for GPU
+   (only routines nbint.f, nbintp.f, gpucor.f are needed). The input
+   value is read as last entry from adjust.f at TIME=0 (GPU version).
+   Try SMAX=0.125. Note maximum step = 1.0 in the standard code.
+   Also note CALL INTIDE and reading input line has been suppressed;
+   hence SMAX data should come after IMF or (#8) primordial binaries.
+
+2009/6/8: Further improvements of GPU routines. A new criterion for
+regular time-steps in rare cases of small regular force and no
+change in neighbour number which may occur for central particles.
+All time-steps are now allowed to increase by 4, subject to time
+commensurability test and large time-step ratio.
+
+2010/13/1: Improved procedure for minimizing derivative corrections
+in gpucor.f. This is achieved using KZ(38) = 3 in order to determine
+difficult cases of neighbour loss. Thus inclusion of fast particles
+in the regular force derivatives may lead to regular step reduction.

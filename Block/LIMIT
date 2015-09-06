@@ -1,0 +1,2 @@
+*       Impose a limit on size of neighbour sphere (100*R > 0.80*RS).
+          IF (RI.GT.8.0D-03*RS(I)) GO TO 90
