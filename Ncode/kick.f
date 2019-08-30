@@ -65,16 +65,28 @@
 *     BHFLAG = 2
 *
 *       Take a flat distribution between 0-100 km/s for regular NSs, 
-*       scale EC kicks down by a factor of 4 and do not give kicks 
-*       to BHs. WD kicks depend on #25. 
-      DISP = -100.D0
+*       not scale EC kicks and do not give kicks 
+*       to BHs. 
+*smhr_s
+*      DISP = -100.D0
+*      VFAC = 0.D0
+*      ECSIG = -0.25D0
+*      WDSIG1 = 0.D0
+*      WDSIG2 = 0.D0
+*      WDKMAX = 0.D0
+*      BHFLAG = 0
+*      BHFLAG = 2
+*       Take a flat distribution between 0-500 km/s for regular NSs, 
+*       scale EC kicks down by a factor of 4 and give regular kicks 
+*       to BHs. No WD kicks.
+      DISP = -500.D0
       VFAC = 0.D0
-      ECSIG = -0.25D0
+      ECSIG = -1.D0
       WDSIG1 = 2.D0
       WDSIG2 = 2.D0
       WDKMAX = 6.D0
-      BHFLAG = 0
-      BHFLAG = 2
+      BHFLAG = 1
+*smhr_e
 *
 *       Save orbital parameters in case of KS binary (called from KSAPO).
       IF (ICASE.EQ.0) THEN
@@ -155,15 +167,34 @@
          IF(VFAC.GT.0.001D0) DISP0 = VFAC*VSTAR
          IF(KW.EQ.13.AND.ZM.LT.1.28) DISP0 = DISP0*ABS(ECSIG)
 *
-         VKICK = RAN2(IDUM1)*DISP0
-         THETA = RAN2(IDUM1)*TWOPI
-         SPHI = RAN2(IDUM1)
-         X1 = ASIN(SPHI)
-         CPHI = COS(X1)
-         VK(1) = COS(THETA)*CPHI*VKICK
-         VK(2) = SIN(THETA)*CPHI*VKICK
-         VK(3) = SPHI*VKICK
-         VK2 = VKICK*VKICK
+*smhr_s
+         IF(KW.EQ.13)THEN
+            IF(RAN2(IDUM1).GE.0.1)THEN
+                VKICK = RAN2(IDUM1)*DISP0
+                THETA = RAN2(IDUM1)*TWOPI
+                SPHI = RAN2(IDUM1)
+                X1 = ASIN(SPHI)
+                CPHI = COS(X1)
+                VK(1) = COS(THETA)*CPHI*VKICK
+                VK(2) = SIN(THETA)*CPHI*VKICK
+                VK(3) = SPHI*VKICK
+                VK2 = VKICK*VKICK
+            ENDIF
+         ENDIF
+         IF(KW.EQ.14)THEN
+            IF(RAN2(IDUM1).GE.0.3)THEN
+                VKICK = RAN2(IDUM1)*DISP0
+                THETA = RAN2(IDUM1)*TWOPI
+                SPHI = RAN2(IDUM1)
+                X1 = ASIN(SPHI)
+                CPHI = COS(X1)
+                VK(1) = COS(THETA)*CPHI*VKICK
+                VK(2) = SIN(THETA)*CPHI*VKICK
+                VK(3) = SPHI*VKICK
+                VK2 = VKICK*VKICK
+            ENDIF
+         ENDIF
+*smhr_e
 *
       ELSE
 *
@@ -282,14 +313,25 @@
           IPAIR = 0
       END IF
 *
-      IF (NKICK.LT.50.OR.NAME(I).LE.2*NBIN0.OR.
-     &    (KW.GE.13.AND.TTOT*TSTAR.GT.100.0)) THEN
-          WRITE (6,20)  I, NAME(I), KSTAR(I), KC, BODY0(I)*ZMBAR, ZM,
-     &                  SQRT(VI2)*VSTAR, VKICK*VSTAR, SQRT(VF2)*VSTAR
-   20     FORMAT (' VELOCITY KICK:    I NAM K* KC* M0 M VI VK VF ',
-     &                                2I6,2I4,2F7.2,3F7.1)
+*smhr_s
+*      IF (NKICK.LT.50.OR.NAME(I).LE.2*NBIN0.OR.
+*     &    (KW.GE.13.AND.TTOT*TSTAR.GT.100.0)) THEN
+*          WRITE (6,20)  I, NAME(I), KSTAR(I), KC, BODY0(I)*ZMBAR, ZM,
+*     &                  SQRT(VI2)*VSTAR, VKICK*VSTAR, SQRT(VF2)*VSTAR
+*   20     FORMAT (' VELOCITY KICK:    I NAM K* KC* M0 M VI VK VF ',
+*     &                                2I6,2I4,2F7.2,3F7.1)
+*          KC = 0
+*      END IF
+          WRITE (6,20)  I, NAME(I), (TIME+TOFF)*TSTAR, KSTAR(I), KW, KC,
+     &         BODY0(I)*ZMBAR,ZM,SQRT(VI2)*VSTAR, VKICK*VSTAR, 
+     &         SQRT(VF2)*VSTAR, VK(4),fallback
+   20     FORMAT (' VELOCITY KICK: I',I10'  NAME',I10,
+     &         '  Time[Myr]',E12.5,'  K*0',I4,
+     &         '  K*',I4,'  K*(ICM)',I4'  M0[M*]',F9.4,'  MN[M*]',F9.4,
+     &         '  VI[km/s]',F9.4,'  VK[km/s]',F9.4'  VF[km/s]',F9.4,
+     &         '  VK0[km/s]',F9.4,'  FB',F9.4)
           KC = 0
-      END IF
+*smhr_e
 *
 *       Highlight BH/NS velocities below 4 times rms velocity.
       IF (VKICK.LT.4.0*SQRT(0.5).AND.KW.GE.13.AND.VKICK.GT.0.05) THEN
