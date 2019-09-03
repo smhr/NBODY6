@@ -18,7 +18,7 @@
 #define NB_BUF_SIZE (1<<20)
 // #define NNB_MAX       384 // total NNB at reduced
 
-#define MAX_CPU 8
+#define MAX_CPU 16
 #define MAX_GPU 4
 
 // for clearity, for myself

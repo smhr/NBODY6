@@ -7,11 +7,11 @@
 #include "cuda_pointer.h"
 
 #define NTHREAD 64 // 64 or 128
-#define NJBLOCK 14 // for GTX 470
+#define NJBLOCK 30
 #define NIBLOCK 32 // 16 or 32 
 #define NIMAX (NTHREAD * NIBLOCK) // 2048
 
-#define NXREDUCE 16 // must be >NJBLOCK
+#define NXREDUCE 32 // must be >NJBLOCK
 #define NYREDUCE  8
 
 #define NNB_PER_BLOCK 256 // NNB per block, must be power of 2

@@ -3,7 +3,7 @@
 #include <cassert>
 #include <vector>
 
-#define TMAX 8 // maximum number of threads
+#define TMAX 16 // maximum number of threads
 #if 1
 #include <omp.h>
 #else

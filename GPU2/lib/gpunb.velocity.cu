@@ -13,7 +13,7 @@
 
 #define NTHREAD 64 // 64 or 128
 // #define NJBLOCK 14 // for GTX 470
-#define NJBLOCK 28 // for GTX660Ti 
+#define NJBLOCK 30 // for GTX660Ti 
 #define NIBLOCK 32 // 16 or 32 
 #define NIMAX (NTHREAD * NIBLOCK) // 2048
 
@@ -24,7 +24,7 @@
 #define NB_BUF_SIZE (1<<20)
 // #define NNB_MAX       384 // total NNB at reduced
 
-#define MAX_CPU 8
+#define MAX_CPU 16
 #define MAX_GPU 4
 
 // for clearity, for myself
