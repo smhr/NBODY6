@@ -1,5 +1,5 @@
 #avx       = enable
-chainmode = archain
+chainmode = chain
 #ksblock   = on
 
 ifeq ($(avx), enable)
