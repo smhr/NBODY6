@@ -159,7 +159,7 @@
               TE2 = 0.25*(ZL2 - 2.0*R2) + 3.76
               WRITE (82,5)  NAME(J1), NAME(J2), KW, KW2, KSTAR(ICM),
      &            RI, ECC, PB, SEMI, M1, M2, ZL1, ZL2, R1, R2, TE1, TE2
-    5         FORMAT (2I6,2I3,I4,F6.1,F6.3,10F7.3)
+    5         FORMAT (2I10,2I4,I4,F9.3,F9.3,10F7.3)
               NB = NB + 1
           ELSE
 *       Create output file for single stars (skip chain subsystem or ghost).
@@ -184,7 +184,7 @@
               RADII(I) = RM
               WRITE (83,10)  NAME(I), KW, RI, M1, ZL1, R1, TE,
      &                       BV, abvmag
-   10         FORMAT (I6,I3,F6.1,6F7.3)
+   10         FORMAT (I10,I4,F7.2,6F12.4)
               NSTAR = NSTAR + 1
           END IF
    20 CONTINUE
