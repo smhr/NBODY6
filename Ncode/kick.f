@@ -79,7 +79,7 @@
 *       Take a flat distribution between 0-500 km/s for regular NSs, 
 *       scale EC kicks down by a factor of 4 and give regular kicks 
 *       to BHs. No WD kicks.
-      DISP = -500.D0
+      DISP = -200.D0
       VFAC = 0.D0
       ECSIG = -1.D0
       WDSIG1 = 2.D0
@@ -169,7 +169,9 @@
 *
 *smhr_s
          IF(KW.EQ.13)THEN
+                print*,"k13in",idum1
             IF(RAN2(IDUM1).GE.0.1)THEN
+                print*,"k13, idum=",idum1
                 VKICK = RAN2(IDUM1)*DISP0
                 THETA = RAN2(IDUM1)*TWOPI
                 SPHI = RAN2(IDUM1)
@@ -179,10 +181,14 @@
                 VK(2) = SIN(THETA)*CPHI*VKICK
                 VK(3) = SPHI*VKICK
                 VK2 = VKICK*VKICK
+            ELSE
+                GOTO 30
             ENDIF
          ENDIF
          IF(KW.EQ.14)THEN
+                print*,"k14in",idum1
             IF(RAN2(IDUM1).GE.0.3)THEN
+                print*,"k14, idum=",idum1
                 VKICK = RAN2(IDUM1)*DISP0
                 THETA = RAN2(IDUM1)*TWOPI
                 SPHI = RAN2(IDUM1)
@@ -192,6 +198,8 @@
                 VK(2) = SIN(THETA)*CPHI*VKICK
                 VK(3) = SPHI*VKICK
                 VK2 = VKICK*VKICK
+            ELSE
+                GOTO 30
             ENDIF
          ENDIF
 *smhr_e
@@ -322,9 +330,10 @@
 *     &                                2I6,2I4,2F7.2,3F7.1)
 *          KC = 0
 *      END IF
+   30     print*,"Iam30"
           WRITE (6,20)  I, NAME(I), (TIME+TOFF)*TSTAR, KSTAR(I), KW, KC,
-     &         BODY0(I)*ZMBAR,ZM,SQRT(VI2)*VSTAR, VKICK*VSTAR, 
-     &         SQRT(VF2)*VSTAR, VK(4),fallback
+     &         BODY0(I)*ZMBAR,ZM,SQRT(VI2)*VSTAR, VKICK*VSTAR,
+     &         SQRT(VF2)*VSTAR, VK(4)
    20     FORMAT (' VELOCITY KICK: I',I10'  NAME',I10,
      &         '  Time[Myr]',E12.5,'  K*0',I4,
      &         '  K*',I4,'  K*(ICM)',I4'  M0[M*]',F9.4,'  MN[M*]',F9.4,
@@ -344,6 +353,6 @@
 *         CALL HIVEL(I)
 *     END IF
 *
-   30 RETURN
+*   30 RETURN
 *
       END
