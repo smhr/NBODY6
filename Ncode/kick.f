@@ -353,6 +353,6 @@
 *         CALL HIVEL(I)
 *     END IF
 *
-   30 RETURN
+*   30 RETURN
 *
       END
