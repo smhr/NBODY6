@@ -15,8 +15,11 @@
       DATA  FIRST /.TRUE./
 *
 *
-*       Adopt twice the tidal radius as escape condition.
-      RESC2 = 4.0*RTIDE**2
+*       Adopt three times the tidal radius as escape condition.
+*smhr_s
+*      RESC2 = 4.0*RTIDE**2
+      RESC2 = 400.0*RTIDE**2
+*smhr_e
       RTIDE2 = RTIDE**2
       NCORR = 0
       NCRIT1 = 0

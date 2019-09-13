@@ -2,7 +2,7 @@
 #include <cmath>
 #include <cassert>
 
-#define TMAX 8
+#define TMAX 16
 #if 1
 #include <omp.h>
 #else

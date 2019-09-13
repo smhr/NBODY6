@@ -1,5 +1,5 @@
 #avx       = enable
-chainmode = archain
+chainmode = chain
 #ksblock   = on
 
 ifeq ($(avx), enable)
@@ -40,7 +40,7 @@ CUDA_PATH = /usr/local/cuda
 SDK_PATH  = /usr/local/cuda/samples
 
 NVCC = $(CUDA_PATH)/bin/nvcc
-NVCC += -arch=sm_20 -Xptxas -v
+NVCC += -arch=sm_30 -Xptxas -v
 NVCC += -I $(SDK_PATH)/common/inc
 ifeq ($(avx), enable)
 NVCC += -Xcompiler "-O3 -Wall -fopenmp -mavx"

@@ -1,4 +1,4 @@
-      SUBROUTINE HRPLOT
+      SUBROUTINE HRPLOT(LUMINOSITIES,RADII)
 *
 *
 *       HR diagnostics of evolving stars.
@@ -10,6 +10,34 @@
      &                NAMEM(MMAX),NAMEG(MMAX),KSTARM(MMAX),IFLAG(MMAX)
       REAL*8  LUMS(10),TSCLS(20),GB(10)
       REAL*8  M0,M1,M2,LUM,LUM2,MC,ME,K2
+*
+*       Variables and parameters for color calculation
+      REAL*8 LUMINOSITIES(NMAX), RADII(NMAX)
+      REAL*8 bvc0,bvc1,bvc2,bvc3,bvc4,bvc5,bvc6,bvc7
+      REAL*8 bcc0,bcc1,bcc2,bcc3,bcc4,bcc5,bcc6,bcc7
+      REAL*8 BCsun, abvmagsun
+      REAL*8 BC,BV,abvmag
+
+      bvc0 = -654597.405559323
+      bvc1 = 1099118.61158915
+      bvc2 = -789665.995692672
+      bvc3 = 314714.220932623
+      bvc4 = -75148.4728506455
+      bvc5 = 10751.803394526
+      bvc6 = -853.487897283685
+      bvc7 = 28.9988730655392
+
+      bcc0 = -4222907.80590972
+      bcc1 = 7209333.13326442
+      bcc2 = -5267167.04593882
+      bcc3 = 2134724.55938336
+      bcc4 = -518317.954642773
+      bcc5 = 75392.23722071
+      bcc6 = -6082.73011947757
+      bcc7 = 209.990478646359
+
+      BCsun = 0.11
+      abvmagsun = 4.83
 *
 *
       WRITE (82,1)  NPAIRS, TPHYS
@@ -131,7 +159,7 @@
               TE2 = 0.25*(ZL2 - 2.0*R2) + 3.76
               WRITE (82,5)  NAME(J1), NAME(J2), KW, KW2, KSTAR(ICM),
      &            RI, ECC, PB, SEMI, M1, M2, ZL1, ZL2, R1, R2, TE1, TE2
-    5         FORMAT (2I6,2I3,I4,F6.1,F6.3,10F7.3)
+    5         FORMAT (2I10,2I4,I4,F9.3,F9.3,10F7.3)
               NB = NB + 1
           ELSE
 *       Create output file for single stars (skip chain subsystem or ghost).
@@ -144,8 +172,19 @@
               ZL1 = LOG10(LUM)
 *       Form LOG(Te) using L = 4*pi*R**2*\sigma*T**4 and solar value 3.7.
               TE = 0.25*(ZL1 - 2.0*R1) + 3.76
-              WRITE (83,10)  NAME(I), KW, RI, M1, ZL1, R1, TE
-   10         FORMAT (I10,I4,5F10.3)
+*       Calculate the color and the bolometric correction
+              BV = bvc0+bvc1*TE+bvc2*TE**2+bvc3*TE**3+bvc4*TE**4
+     &               +bvc5*TE**5+bvc6*TE**6+bvc7*TE**7
+
+              BC = bcc0+bcc1*TE+bcc2*TE**2+bcc3*TE**3+bcc4*TE**4
+     &               +bcc5*TE**5+bcc6*TE**6+bcc7*TE**7
+
+              abvmag = -2.5*ZL1-BC+BCsun+abvmagsun
+              LUMINOSITIES(I) = LUM
+              RADII(I) = RM
+              WRITE (83,10)  NAME(I), KW, RI, M1, ZL1, R1, TE,
+     &                       BV, abvmag
+   10         FORMAT (I10,I4,F7.2,6F12.4)
               NSTAR = NSTAR + 1
           END IF
    20 CONTINUE

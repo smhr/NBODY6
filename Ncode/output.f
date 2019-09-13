@@ -15,8 +15,10 @@
      &                TCL,STEPCL,NCL,NEWCL
       COMMON/ECHAIN/  ECH
       REAL*8  X1(3,4),V1(3,4),UI(4),VI(4),XREL2(3),VREL2(3)
-      REAL*4  XS(3,NMAX),VS(3,NMAX),BODYS(NMAX),AS(20)
-      REAL*4  XJ(3,6),VJ(3,6),BODYJ(6)
+      REAL*8  XS(3,NMAX),VS(3,NMAX),BODYS(NMAX),AS(40)
+      REAL*8  XJ(3,6),VJ(3,6),BODYJ(6)
+      REAL*8  R2,RHO
+      REAL*8  LUMINOSITIES(NMAX),RADII(NMAX)
       LOGICAL  FIRST,SECOND,THIRD
       SAVE  FIRST,SECOND,THIRD
       DATA  FIRST,SECOND ,THIRD/.TRUE.,.TRUE.,.TRUE./
@@ -292,7 +294,7 @@
 *
 *       Check optional diagnostics of evolving stars.
       IF (KZ(12).GT.0.AND.TIME.GE.TPLOT) THEN
-          CALL HRPLOT
+          CALL HRPLOT(LUMINOSITIES,RADII)
       END IF
 *
 *       Check optional writing of data on unit 3 (frequency NFIX). 
@@ -308,8 +310,8 @@
       AS(7) = RDENS(1)
       AS(8) = RDENS(2)
       AS(9) = RDENS(3)
-      AS(10) = TTOT/TCR
-      AS(11) = TSTAR
+      AS(10) = TSCALE*TTOT
+      AS(11) = TSCALE
       AS(12) = VSTAR
       AS(13) = RC
       AS(14) = NC
@@ -319,6 +321,27 @@
       AS(18) = RSCALE
       AS(19) = RSMIN
       AS(20) = DMIN1
+      AS(21) = RG(1)
+      AS(22) = RG(2)
+      AS(23) = RG(3)
+      AS(24) = GMG
+      AS(25) = ZDUM(1)
+      AS(26) = OMEGA
+      AS(27) = VG(1)
+      AS(28) = VG(2)
+      AS(29) = VG(3)
+      AS(30) = DISK
+      AS(31) = A
+      AS(32) = B
+      AS(33) = V02
+      AS(34) = RL2
+      AS(35) = GMB
+      AS(36) = AR
+      AS(37) = GAM
+      AS(38) = ZDUM(2)
+      AS(39) = ZDUM(3)
+      AS(40) = ZDUM(4)
+*
 *
 *       Include prediction of unperturbed binaries (except ghosts).
       DO 84 J = 1,NPAIRS
@@ -455,12 +478,13 @@
           OPEN (UNIT=3,STATUS='NEW',FORM='UNFORMATTED',FILE='OUT3')
           FIRST = .FALSE.
       END IF
-      NK = 20
-      WRITE (3)  NTOT, MODEL, NRUN, NK
+      NK = 40
+      WRITE (3)  NTOT, NK, N
       WRITE (3)  (AS(K),K=1,NK), (BODYS(J),J=1,NTOT),
      &           ((XS(K,J),K=1,3),J=1,NTOT), ((VS(K,J),K=1,3),J=1,NTOT),
-     &           (NAME(J),J=1,NTOT)
-*     CLOSE (UNIT=3)
+     &           (RADII(J),J=1,NTOT),(NAME(J),J=1,NTOT),
+     &           (KSTAR(J),J=1,NTOT),(LUMINOSITIES(J),J=1,NTOT)
+      CALL FLUSH(3)
 *
 *       Produce output file for tidal tail members.
    99 IF (KZ(3).LE.3) THEN
