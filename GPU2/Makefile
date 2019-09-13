@@ -1,4 +1,4 @@
-#avx       = enable
+avx       = enable
 chainmode = chain
 #ksblock   = on
 
